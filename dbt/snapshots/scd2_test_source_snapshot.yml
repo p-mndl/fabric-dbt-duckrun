@@ -1,0 +1,9 @@
+snapshots:
+  - name: scd2_test_source_snapshot
+    relation: source('bronze', 'scd2_test_source')
+    config:
+      schema: SCD2_TEST
+      unique_key: id
+      strategy: check
+      check_cols: [price, category]
+      invalidate_hard_deletes: true

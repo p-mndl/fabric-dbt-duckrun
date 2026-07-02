@@ -1,0 +1,11 @@
+.venv/
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+*.pyc
+__pycache__/
+.env
+*.log
+.claude/
+.dev-env

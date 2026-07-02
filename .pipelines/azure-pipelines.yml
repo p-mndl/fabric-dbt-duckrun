@@ -1,0 +1,36 @@
+# Promotes this repo from dev (git-synced with the Fabric DEV workspace) to test/prod.
+# Triggered by merging the `test` or `prod` branch (PR from main -> test, then test -> prod).
+# No ADO Environments / approval gates for this PoC -- add them later if needed.
+
+trigger:
+  branches:
+    include: [test, prod]
+
+variables:
+  - name: target_env
+    value: ${{ replace(variables['Build.SourceBranch'], 'refs/heads/', '') }}
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.12"
+      addToPath: true
+    displayName: "Set up Python"
+
+  - task: AzureCLI@2
+    displayName: "Deploy to Fabric ($(target_env))"
+    inputs:
+      # Service connection "<SERVICE_CONNECTION_NAME>" has write access to the test/prod Fabric workspaces.
+      azureSubscription: "<SERVICE_CONNECTION_NAME>"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -e
+        pip install fabric-cicd azure-storage-file-datalake
+        python .deploy/deploy_fabric_items.py --env $(target_env)
+        python .deploy/deploy_dbt_files.py --env $(target_env)

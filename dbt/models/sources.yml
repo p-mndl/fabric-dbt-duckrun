@@ -1,0 +1,36 @@
+version: 2
+
+# Read side: SRC_WORKSPACE_ID/LH_BRONZE_ID come from the Variable Library (same flow as
+# profiles.yml). Per-developer value sets typically point these at the shared TEST bronze so
+# local dev reads real data while writes stay in the developer's own workspace.
+sources:
+  - name: bronze
+    description: Raw data from LH_Bronze
+    tables:
+      - name: publicholidays
+        description: Public holidays reference table
+        meta:
+          plugin: duckrun
+          delta_table_path: "abfss://{{ env_var('SRC_WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_BRONZE_ID') }}/Tables/dbo/publicholidays"
+        columns:
+          - name: countryOrRegion
+            description: Country or region code (ISO 3166-1 alpha-2)
+            tests:
+              - not_null
+              - unique
+      - name: scd2_test_source
+        description: >
+          Synthetic, deterministically-mutating fixture written by NB_scd2_test_mutator — exists
+          solely to give `dbt snapshot` (check_cols strategy) something real to version. No
+          business meaning; id=1 always changes price/category (must trigger a new snapshot
+          version), id=2 always changes only notes (must NOT trigger one), a new row is inserted
+          every run, and rows are occasionally hard-deleted.
+        meta:
+          plugin: duckrun
+          delta_table_path: "abfss://{{ env_var('SRC_WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_BRONZE_ID') }}/Tables/dbo/scd2_test_source"
+        columns:
+          - name: id
+            description: Natural key
+            tests:
+              - not_null
+              - unique

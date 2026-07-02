@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/valueSet/1.0.0/schema.json",
+  "name": "prod",
+  "variableOverrides": [
+    {
+      "name": "workspace_id",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"
+    },
+    {
+      "name": "src_workspace_id",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"
+    },
+    {
+      "name": "lh_bronze",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2"
+    },
+    {
+      "name": "lh_silver",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3"
+    },
+    {
+      "name": "lh_gold",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4"
+    },
+    {
+      "name": "nb_dbt_runner",
+      "value": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5"
+    }
+  ]
+}

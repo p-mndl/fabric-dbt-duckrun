@@ -1,0 +1,58 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "name": "NB_dbt_build",
+        "type": "TridentNotebook",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "notebookId": {
+            "value": "@pipeline().libraryVariables.VL_nb_dbt_runner",
+            "type": "Expression"
+          },
+          "workspaceId": {
+            "value": "@pipeline().libraryVariables.VL_workspace_id",
+            "type": "Expression"
+          },
+          "parameters": {
+            "dbt_command": {
+              "value": "build",
+              "type": "string"
+            },
+            "dbt_select": {
+              "value": "",
+              "type": "string"
+            },
+            "dbt_full_refresh": {
+              "value": "false",
+              "type": "string"
+            },
+            "dbt_vars": {
+              "value": "{}",
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "libraryVariables": {
+      "VL_workspace_id": {
+        "type": "String",
+        "variableName": "workspace_id",
+        "libraryName": "VL"
+      },
+      "VL_nb_dbt_runner": {
+        "type": "String",
+        "variableName": "nb_dbt_runner",
+        "libraryName": "VL"
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'fabric_duckrun'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'fabric_duckrun'
+
+# These configurations specify where dbt should look for different types of files.
+# The `source-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["models"]
+# analysis-paths: ["analyses"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+
+target-path: "target"  # directory which will store compiled SQL files
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+# Configuring models
+# Full documentation: https://docs.getdbt.com/docs/configuring-models
+
+# These settings can be overridden in the individual model files
+# using the `{{ config(...) }}` macro.
+models:
+  fabric_duckrun:
+    +schema: demo
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+
+# Silver tier = dbt snapshots (see README architecture notes). Routes every snapshot to the
+# real LH_Silver Lakehouse by default via duckrun's 0.3.29 multi-catalog config (profiles.yml
+# catalogs.silver), so a new snapshot can't accidentally land in the default (Gold) catalog.
+snapshots:
+  fabric_duckrun:
+    +database: silver

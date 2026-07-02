@@ -1,0 +1,16 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+    "terminal.integrated.profiles.windows": {
+        "dbt (dev)": {
+            "source": "PowerShell",
+            "args": [
+                "-NoExit",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                ".vscode\\terminal-init.ps1"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "dbt (dev)"
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/valueSet/1.0.0/schema.json",
+  "name": "test",
+  "variableOverrides": [
+    {
+      "name": "workspace_id",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+    },
+    {
+      "name": "src_workspace_id",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+    },
+    {
+      "name": "lh_bronze",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2"
+    },
+    {
+      "name": "lh_silver",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3"
+    },
+    {
+      "name": "lh_gold",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4"
+    },
+    {
+      "name": "nb_dbt_runner",
+      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5"
+    }
+  ]
+}

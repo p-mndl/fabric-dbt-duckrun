@@ -1,0 +1,23 @@
+fabric_duckrun:
+  # A single target: dbt targets do NOT model environments here. Every GUID comes from the
+  # Variable Library, resolved per context: locally the VS Code terminal profile sets these env
+  # vars from the value set named in .dev-env (see .vscode/terminal-init.ps1); in Fabric the
+  # runner notebook sets them from the workspace's active value set. No env var set -> dbt
+  # fails loudly instead of writing to the wrong place (deliberately no defaults here).
+  target: fabric
+  outputs:
+    fabric:
+      type: duckrun
+      # Write side: the developer's own workspace.
+      root_path: "abfss://{{ env_var('WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_GOLD_ID') }}/Tables"
+      storage_options:
+        bearer_token: "{{ env_var('FABRIC_STORAGE_TOKEN') }}"
+      # Additional write roots ("catalogs"): each alias becomes addressable from any model or
+      # snapshot via the standard `+database: <alias>` config; nodes without a database config
+      # write to the default root_path above. Reuses the same token: it's a OneLake-wide Entra
+      # token, not scoped to a single Lakehouse item.
+      catalogs:
+        silver:
+          root_path: "abfss://{{ env_var('WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_SILVER_ID') }}/Tables"
+          storage_options:
+            bearer_token: "{{ env_var('FABRIC_STORAGE_TOKEN') }}"
