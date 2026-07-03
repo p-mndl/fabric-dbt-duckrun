@@ -373,7 +373,7 @@ all; nothing else in the repo is tenant-specific.
 
 | Package | Maintainer | Version |
 |---|---|---|
-| duckrun | Community (djouallah) | pinned in `requirements.txt` (0.3.29) |
+| duckrun | Community (djouallah) | pinned in `requirements.txt` (0.3.33, same pin in the runner notebook) |
 | dbt-core / dbt-duckdb | dbt Labs / Community | transitive via duckrun |
 | azure-storage-file-datalake | Microsoft | >= 12.14.0 (deploy script + notebook) |
 | fabric-cicd | Microsoft | unpinned, installed in the pipeline only |

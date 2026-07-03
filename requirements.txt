@@ -1,2 +1,2 @@
-duckrun[local]==0.3.29
+duckrun[local]==0.3.33
 azure-storage-file-datalake>=12.14.0
