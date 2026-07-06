@@ -2,5 +2,11 @@ WITH source AS (
     SELECT * FROM {{ source('bronze', 'publicholidays') }}
 )
 
-SELECT *
+SELECT
+    countryOrRegion,
+    holidayName,
+    normalizeHolidayName,
+    IsPaidTimeOff,
+    countryRegionCode,
+    "date"
 FROM source

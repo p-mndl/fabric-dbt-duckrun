@@ -3,5 +3,12 @@ WITH staged AS (
     where countryOrRegion = 'Germany'
 )
 
-SELECT *
+SELECT
+    countryOrRegion as Land,
+    countryOrRegion,
+    holidayName,
+    normalizeHolidayName,
+    IsPaidTimeOff,
+    countryRegionCode,
+    "date"
 FROM staged
