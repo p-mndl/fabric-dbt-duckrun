@@ -21,7 +21,7 @@
 # Pinned so Fabric runs the same adapter version as local dev/CI — keep in sync with
 # requirements.txt (an unpinned install once shipped a silent behavior change, duckrun#8).
 
-%pip install -q duckrun==0.3.33
+%pip install -q duckrun==0.3.37
 
 # The Fabric kernel image ships with duckdb 1.4.4 already loaded; duckrun needs >=1.5.4. The
 # pip install above puts the newer version on disk, but the running kernel process still has
