@@ -4,3 +4,6 @@ azure-storage-file-datalake>=12.14.0
 # it reads a local mirror instead of OneLake directly). The dbt package itself is pinned
 # separately in dbt/packages.yml + package-lock.yml.
 elementary-data==0.25.0
+# Documentation/lineage site generator (local, reads target/manifest.json + catalog.json;
+# never touches the warehouse). Regenerate via the `docs` terminal function.
+docglow==0.8.4

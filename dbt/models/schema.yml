@@ -1,0 +1,40 @@
+version: 2
+
+# Minimal showcase documentation: enough for the docglow site (and its health scoring) to
+# demonstrate what documented models look like. Real projects: document every model/column.
+models:
+  - name: stg_publicholidays
+    description: >
+      Staging view over the bronze public-holidays sample: 1:1 column selection, no
+      transformations. Ephemeral — inlined into downstream models at compile time.
+
+  - name: dim_publicholidays
+    description: >
+      German public holidays dimension (demo mart). Filters staging to Germany and adds a
+      German-labelled duplicate of the country column to demonstrate renaming in a mart.
+    columns:
+      - name: Land
+        description: Country name, German label (duplicate of countryOrRegion for demo purposes)
+      - name: countryOrRegion
+        description: Country or region the holiday applies to
+      - name: holidayName
+        description: Holiday name in the local language
+      - name: normalizeHolidayName
+        description: Normalized (ASCII-folded) holiday name
+      - name: IsPaidTimeOff
+        description: Whether the holiday is paid time off (NULL where unknown)
+      - name: countryRegionCode
+        description: ISO 3166-1 alpha-2 country code
+      - name: date
+        description: Calendar date of the holiday
+
+  - name: test_incremental_holidays
+    description: >
+      Demo incremental model (merge strategy) over German holidays. Exists to exercise
+      duckrun's incremental merge path; run_label shows which invocation last touched a row
+      (see the --vars examples in the README).
+    columns:
+      - name: holiday_id
+        description: Merge key — countryOrRegion plus date
+      - name: run_label
+        description: Label of the dbt invocation that last wrote this row (--vars run_label)

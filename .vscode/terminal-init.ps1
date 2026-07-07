@@ -48,6 +48,15 @@ function edr-report {
     }
 }
 
+# Lineage/documentation site (docglow): reads compile-time artifacts only; the dbt docs
+# generate step builds the column catalog from the Lakehouse first. Single-file HTML output.
+function docs {
+    dbt docs generate --project-dir "$root\dbt" --profiles-dir "$root\dbt"
+    if ($LASTEXITCODE -ne 0) { return }
+    docglow generate --project-dir "$root\dbt" --static --output-dir "$root\dbt\target\docglow" @args
+    if ($LASTEXITCODE -eq 0) { Invoke-Item "$root\dbt\target\docglow\index.html" }
+}
+
 function Show-Fails {
     param(
         [Parameter(Mandatory)][string]$SqlFile,

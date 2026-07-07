@@ -1,5 +1,8 @@
 snapshots:
   - name: scd2_test_source_snapshot
+    description: >
+      SCD2 history (check strategy on price/category) over the synthetic mutating fixture —
+      the silver-tier pattern of this template. Hard deletes invalidate the open version.
     relation: source('bronze', 'scd2_test_source')
     config:
       schema: SCD2_TEST
