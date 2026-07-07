@@ -23,8 +23,11 @@ from azure.storage.filedatalake import DataLakeServiceClient
 from fabric_vl import get_variables
 
 ROOT = Path(__file__).parent.parent
-DBT_DIR = ROOT / "dbt"
-TARGET_SUBDIR = "dbt_duckrun"
+
+# Source dir in the repo -> target subdir under LH_Gold/Files/.
+PROJECTS = {
+    "dbt": "dbt_duckrun",
+}
 
 
 def git_tracked_files(directory: Path) -> list[Path]:
@@ -39,7 +42,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", default=os.environ.get("DBT_VL_ENV", "dev"),
                         help="Variable Library value set name (dev, dev_<initials>, test, prod)")
+    parser.add_argument("--project", default="dbt", choices=sorted(PROJECTS),
+                        help="which dbt project to deploy (default: dbt = duckrun POC)")
     args = parser.parse_args()
+
+    dbt_dir = ROOT / args.project
+    target_subdir = PROJECTS[args.project]
 
     variables = get_variables(args.env)  # raises for unknown value set names
     workspace_id = variables["workspace_id"]
@@ -51,17 +59,17 @@ def main():
     )
     fs = service.get_file_system_client(workspace_id)
 
-    files = git_tracked_files(DBT_DIR)
+    files = git_tracked_files(dbt_dir)
 
     try:
-        fs.get_directory_client(f"{lh_gold_id}/Files/{TARGET_SUBDIR}").delete_directory()
-        print(f"deleted existing Files/{TARGET_SUBDIR}/")
+        fs.get_directory_client(f"{lh_gold_id}/Files/{target_subdir}").delete_directory()
+        print(f"deleted existing Files/{target_subdir}/")
     except ResourceNotFoundError:
         pass
 
     dirs = set()
     for f in files:
-        rel_dir = (Path(TARGET_SUBDIR) / f.relative_to(DBT_DIR)).parent
+        rel_dir = (Path(target_subdir) / f.relative_to(dbt_dir)).parent
         while rel_dir.parts:
             dirs.add(rel_dir.as_posix())
             rel_dir = rel_dir.parent
@@ -70,7 +78,7 @@ def main():
         fs.get_directory_client(f"{lh_gold_id}/Files/{d}").create_directory()
 
     for f in files:
-        rel = Path(TARGET_SUBDIR) / f.relative_to(DBT_DIR)
+        rel = Path(target_subdir) / f.relative_to(dbt_dir)
         file_client = fs.get_directory_client(
             f"{lh_gold_id}/Files/{rel.parent.as_posix()}"
         ).get_file_client(f.name)
