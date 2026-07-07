@@ -1,2 +1,6 @@
 duckrun[local]==0.3.37
 azure-storage-file-datalake>=12.14.0
+# edr CLI for the local elementary report (see .deploy/elementary_report_mirror.py for why
+# it reads a local mirror instead of OneLake directly). The dbt package itself is pinned
+# separately in dbt/packages.yml + package-lock.yml.
+elementary-data==0.25.0
