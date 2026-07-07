@@ -41,7 +41,21 @@ function deploy { python "$root\.deploy\deploy_dbt_files.py" @args }
 # persist the report views to OneLake — see .deploy/elementary_report_mirror.py).
 $env:ELEMENTARY_MIRROR = "$root\dbt\target\elementary_mirror.duckdb"
 
+# The storage token set at terminal startup only lives ~60-90 min; anything touching
+# OneLake after that hangs in silent retries. Long-running helpers refresh it first
+# (az returns a cached token instantly while the CLI session is alive).
+function Update-FabricToken {
+    $token = az account get-access-token --resource https://storage.azure.com --query accessToken -o tsv 2>$null
+    if (-not $token) {
+        Write-Host 'Storage token refresh failed - run az login first.' -ForegroundColor Red
+        return $false
+    }
+    $env:FABRIC_STORAGE_TOKEN = $token
+    return $true
+}
+
 function edr-report {
+    if (-not (Update-FabricToken)) { return }
     python "$root\.deploy\elementary_report_mirror.py"
     if ($LASTEXITCODE -eq 0) {
         edr report --project-dir "$root\dbt" --profiles-dir "$root\dbt" @args
@@ -53,6 +67,7 @@ function edr-report {
 # --exclude models/edr*: hide the elementary package's own models (they'd drag down the
 # health scores); --enable-erd: render relationships from `relationships` tests as an ERD.
 function docs {
+    if (-not (Update-FabricToken)) { return }
     dbt docs generate --project-dir "$root\dbt" --profiles-dir "$root\dbt"
     if ($LASTEXITCODE -ne 0) { return }
     docglow generate --project-dir "$root\dbt" --static --output-dir "$root\dbt\target\docglow" `
