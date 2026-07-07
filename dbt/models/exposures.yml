@@ -1,0 +1,20 @@
+version: 2
+
+# Downstream consumers (Power BI reports, notebooks, apps) are invisible to dbt unless
+# declared as exposures. Declaring them (a) draws the consumer into the lineage graph,
+# (b) stops the consumed mart from counting as an orphan in docglow, and (c) records the
+# dependency in elementary's dbt_exposures table. One exposure per real report.
+exposures:
+  - name: public_holidays_dashboard
+    label: Public Holidays Dashboard (demo)
+    type: dashboard
+    maturity: low
+    url: https://app.powerbi.com/  # replace with the real report URL
+    description: >
+      Demo exposure showing how a Power BI report on dim_publicholidays is declared so
+      that lineage and docs know about the consumer.
+    depends_on:
+      - ref('dim_publicholidays')
+    owner:
+      name: Philipp
+      email: 193959585+p-mndl@users.noreply.github.com
