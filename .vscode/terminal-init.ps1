@@ -50,10 +50,13 @@ function edr-report {
 
 # Lineage/documentation site (docglow): reads compile-time artifacts only; the dbt docs
 # generate step builds the column catalog from the Lakehouse first. Single-file HTML output.
+# --exclude models/edr*: hide the elementary package's own models (they'd drag down the
+# health scores); --enable-erd: render relationships from `relationships` tests as an ERD.
 function docs {
     dbt docs generate --project-dir "$root\dbt" --profiles-dir "$root\dbt"
     if ($LASTEXITCODE -ne 0) { return }
-    docglow generate --project-dir "$root\dbt" --static --output-dir "$root\dbt\target\docglow" @args
+    docglow generate --project-dir "$root\dbt" --static --output-dir "$root\dbt\target\docglow" `
+        --exclude "models/edr*" --enable-erd @args
     if ($LASTEXITCODE -eq 0) { Invoke-Item "$root\dbt\target\docglow\index.html" }
 }
 
