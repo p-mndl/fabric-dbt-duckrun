@@ -37,6 +37,17 @@ if ($token) {
 
 function deploy { python "$root\.deploy\deploy_dbt_files.py" @args }
 
+# elementary edr CLI reads a local DuckDB mirror of the elementary schema (duckrun can't
+# persist the report views to OneLake — see .deploy/elementary_report_mirror.py).
+$env:ELEMENTARY_MIRROR = "$root\dbt\target\elementary_mirror.duckdb"
+
+function edr-report {
+    python "$root\.deploy\elementary_report_mirror.py"
+    if ($LASTEXITCODE -eq 0) {
+        edr report --project-dir "$root\dbt" --profiles-dir "$root\dbt" @args
+    }
+}
+
 function Show-Fails {
     param(
         [Parameter(Mandatory)][string]$SqlFile,
