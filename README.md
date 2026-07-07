@@ -330,6 +330,19 @@ Consuming the data:
   that mirror (profile `elementary` in `profiles.yml`, path via `ELEMENTARY_MIRROR`).
   Pointing your value set at another workspace lets you deep-dive its history the same way.
 
+## Documentation & lineage (docglow)
+
+[docglow](https://github.com/docglow/docglow) generates a static documentation site —
+model/column docs, interactive lineage (including column-level), full-text search, health
+scoring — from dbt's compile-time artifacts. It never connects to the warehouse itself; the
+column catalog comes from `dbt docs generate`, which works over duckrun.
+
+The `docs` terminal function does everything: builds the catalog, generates the site
+(single self-contained HTML under `dbt/target/docglow/index.html`) and opens it. Regenerate
+whenever models change; the file can be shared as-is (mail, wiki attachment) — no server
+needed. This is developer-facing documentation; run/test monitoring is elementary's job
+(section above).
+
 ## Placeholder reference
 
 Every environment-specific value in this template is a recognizable placeholder. Replace them
