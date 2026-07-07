@@ -307,6 +307,29 @@ The Variable Library value sets scale naturally from one developer to many. The 
 Because everything is just another value set, no script or config file changes when a
 developer joins — one JSON file in `valueSets/`, one portal click, one terminal prompt.
 
+## Observability (elementary)
+
+The project ships with the [elementary](https://docs.elementary-data.com/) dbt package for
+run/test monitoring. Its `on-run-end` hooks write every invocation's results — run history,
+per-model timings, individual test outcomes — as regular Delta tables into an `elementary`
+schema next to your models. No extra step per run: the scheduled Fabric pipeline runs collect
+their own history automatically (the runner notebook executes `dbt deps` before the main
+command, resolving the pinned version from the committed `package-lock.yml`).
+
+Consuming the data:
+
+- **In Fabric** (the primary path): the elementary tables (`dbt_run_results`,
+  `elementary_test_results`, `dbt_invocations`, …) are plain Delta tables in the Lakehouse —
+  build a Power BI report on them (Direct Lake works) and attach an Activator or Power BI
+  alert for failures.
+- **Locally** (deep dive): `edr-report` in the VS Code terminal generates elementary's
+  standard HTML report (`dbt/edr_target/elementary_report.html`). Because Lakehouses have no
+  view concept, duckrun cannot persist elementary's report views to OneLake; the wrapper
+  first runs `.deploy/elementary_report_mirror.py`, which mirrors the Delta tables into a
+  local DuckDB file and recreates the views from dbt's compiled SQL, then points `edr` at
+  that mirror (profile `elementary` in `profiles.yml`, path via `ELEMENTARY_MIRROR`).
+  Pointing your value set at another workspace lets you deep-dive its history the same way.
+
 ## Placeholder reference
 
 Every environment-specific value in this template is a recognizable placeholder. Replace them
