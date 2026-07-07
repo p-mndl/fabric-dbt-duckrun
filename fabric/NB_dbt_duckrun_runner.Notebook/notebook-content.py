@@ -120,6 +120,17 @@ print(f"dbt project : {DBT_PROJECT_DIR}")
 
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 
+runner = dbtRunner()
+
+# dbt packages (elementary) are not part of the deploy: dbt_packages/ is gitignored and
+# deploy_dbt_files.py copies git-tracked files only. Install them here instead —
+# package-lock.yml IS deployed, so this resolves to the exact pinned versions.
+deps_result: dbtRunnerResult = runner.invoke(
+    ["deps", "--project-dir", DBT_PROJECT_DIR, "--profiles-dir", DBT_PROJECT_DIR]
+)
+if not deps_result.success:
+    raise RuntimeError("dbt deps failed — check the log output above for details")
+
 # No --target flag: the downloaded profiles.yml has a single target whose GUIDs were already
 # rewritten for this environment at deploy time (see .deploy/deploy_dbt_files.py).
 args = [
@@ -139,7 +150,6 @@ if dbt_vars and dbt_vars.strip() not in ("", "{}"):
 
 print(f"Running: dbt {' '.join(str(a) for a in args)}")
 
-runner = dbtRunner()
 result: dbtRunnerResult = runner.invoke(args)
 
 if not result.success:
