@@ -21,3 +21,19 @@ fabric_duckrun:
           root_path: "abfss://{{ env_var('WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_SILVER_ID') }}/Tables"
           storage_options:
             bearer_token: "{{ env_var('FABRIC_STORAGE_TOKEN') }}"
+
+# Monitoring POC: connection profile for elementary's edr CLI (report generation).
+# edr needs elementary's report VIEWS, which duckrun can't persist to OneLake (Lakehouses
+# have no view concept) -- so edr reads a local mirror instead, built by
+# .deploy/elementary_report_mirror.py from the OneLake Delta tables + dbt's compiled SQL.
+# edr resolves this profile by its fixed name "elementary".
+elementary:
+  target: default
+  outputs:
+    default:
+      type: duckdb
+      # Absolute path required: edr runs its dbt commands from elementary's own internal
+      # dbt project, so a relative path would resolve into site-packages.
+      path: "{{ env_var('ELEMENTARY_MIRROR') }}"
+      schema: elementary
+      threads: 1

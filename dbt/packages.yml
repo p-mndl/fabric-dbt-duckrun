@@ -1,0 +1,6 @@
+packages:
+  # Run/test monitoring POC (see memory: Elementary vs. custom decided 2026-07-06).
+  # Elementary writes run results, test results and model timings as Delta tables
+  # via on-run-end hooks; edr CLI renders the report from those tables.
+  - package: elementary-data/elementary
+    version: [">=0.25.0", "<0.26.0"]

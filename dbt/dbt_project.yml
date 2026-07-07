@@ -35,6 +35,10 @@ models:
       +materialized: ephemeral
     marts:
       +materialized: table
+  # Monitoring POC: elementary's result tables land in their own schema in the default
+  # (Gold) catalog. generate_schema_name uses the custom name verbatim -> schema "elementary".
+  elementary:
+    +schema: elementary
 
 # Silver tier = dbt snapshots (see README architecture notes). Routes every snapshot to the
 # real LH_Silver Lakehouse by default via duckrun's 0.3.29 multi-catalog config (profiles.yml
