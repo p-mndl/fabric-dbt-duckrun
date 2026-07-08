@@ -8,6 +8,13 @@ config-version: 2
 # This setting configures which "profile" dbt uses for this project.
 profile: 'fabric_duckrun'
 
+# Since dbt 1.8 packages may not silently override built-in materializations; elementary's
+# test materialization (which captures the failing rows into test_result_rows for the
+# alerting samples) needs this opt-in — without it the runner's alert_message has no
+# failing-row samples, and the elementary report lacks them too.
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false
+
 # These configurations specify where dbt should look for different types of files.
 # The `source-paths` config, for example, states that models in this project can be
 # found in the "models/" directory. You probably won't need to change these!

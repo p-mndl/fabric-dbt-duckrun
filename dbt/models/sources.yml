@@ -15,9 +15,10 @@ sources:
         columns:
           - name: countryOrRegion
             description: Country or region code (ISO 3166-1 alpha-2)
+            # not_null only: a country appears once per holiday, so unique would (and did)
+            # always fail — first surfaced 2026-07-07 by the first real `dbt build` run.
             tests:
               - not_null
-              - unique
       - name: scd2_test_source
         description: >
           Synthetic, deterministically-mutating fixture written by NB_scd2_test_mutator — exists
