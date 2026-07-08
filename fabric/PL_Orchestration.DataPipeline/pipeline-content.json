@@ -24,28 +24,28 @@
           "parameters": {
             "dbt_command": {
               "value": {
-                "value": "@pipeline().parameters.dbt_command",
+                "value": "@string(pipeline().parameters.dbt_command)",
                 "type": "Expression"
               },
               "type": "string"
             },
             "dbt_select": {
               "value": {
-                "value": "@pipeline().parameters.dbt_select",
+                "value": "@string(pipeline().parameters.dbt_select)",
                 "type": "Expression"
               },
               "type": "string"
             },
             "dbt_full_refresh": {
               "value": {
-                "value": "@pipeline().parameters.dbt_full_refresh",
+                "value": "@string(pipeline().parameters.dbt_full_refresh)",
                 "type": "Expression"
               },
               "type": "string"
             },
             "dbt_vars": {
               "value": {
-                "value": "@pipeline().parameters.dbt_vars",
+                "value": "@string(pipeline().parameters.dbt_vars)",
                 "type": "Expression"
               },
               "type": "string"

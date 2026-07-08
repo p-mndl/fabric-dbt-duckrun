@@ -11,10 +11,10 @@
 
 # CELL ********************
 
-%%configure
-{
-    "vCores": 2
-}
+# MAGIC %%configure
+# MAGIC {
+# MAGIC     "vCores": 2
+# MAGIC }
 
 # METADATA ********************
 
@@ -61,7 +61,7 @@ notebookutils.session.restartPython()
 # Defaults for standalone execution. A Fabric Data Pipeline overrides these per activity,
 # allowing domain-specific pipelines (e.g. PL_dbt_hr, PL_dbt_erp) to control what runs
 # without separate notebook files.
-dbt_command = "run"      # dbt subcommand: "build" (run+test+snapshot in dep-order), "run", "test", "snapshot", "source freshness"
+dbt_command = "build"      # dbt subcommand: "build" (run+test+snapshot in dep-order), "run", "test", "snapshot", "source freshness"
 dbt_select = ""          # --select value; empty string = all models
 dbt_full_refresh = "false"  # "true" passes --full-refresh (forces full rebuild of incremental models)
 dbt_vars = "{}"          # JSON string passed as --vars, e.g. '{"country": "Germany"}'
