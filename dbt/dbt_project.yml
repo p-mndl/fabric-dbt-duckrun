@@ -12,8 +12,14 @@ profile: 'fabric_duckrun'
 # test materialization (which captures the failing rows into test_result_rows for the
 # alerting samples) needs this opt-in — without it the runner's alert_message has no
 # failing-row samples, and the elementary report lacks them too.
+# The opt-in itself is deprecated (dbt will drop package overrides in a future major, at
+# which point elementary must ship a migration) — silence exactly that one notice so it
+# doesn't flood every run log with 26 occurrences; all other deprecations stay visible.
 flags:
   require_explicit_package_overrides_for_builtin_materializations: false
+  warn_error_options:
+    silence:
+      - PackageMaterializationOverrideDeprecation
 
 # These configurations specify where dbt should look for different types of files.
 # The `source-paths` config, for example, states that models in this project can be
