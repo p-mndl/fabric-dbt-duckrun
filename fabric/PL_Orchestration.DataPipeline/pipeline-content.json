@@ -23,25 +23,143 @@
           },
           "parameters": {
             "dbt_command": {
-              "value": "build",
+              "value": {
+                "value": "@pipeline().parameters.dbt_command",
+                "type": "Expression"
+              },
               "type": "string"
             },
             "dbt_select": {
-              "value": "",
+              "value": {
+                "value": "@pipeline().parameters.dbt_select",
+                "type": "Expression"
+              },
               "type": "string"
             },
             "dbt_full_refresh": {
-              "value": "false",
+              "value": {
+                "value": "@pipeline().parameters.dbt_full_refresh",
+                "type": "Expression"
+              },
               "type": "string"
             },
             "dbt_vars": {
-              "value": "{}",
+              "value": {
+                "value": "@pipeline().parameters.dbt_vars",
+                "type": "Expression"
+              },
               "type": "string"
             }
           }
         }
+      },
+      {
+        "name": "Switch_dbt_status",
+        "description": "Routes on the status field of the runner notebook's exit-JSON. models_failed/tests_failed alert and then fail the pipeline via an explicit Fail activity; tests_warned only informs (pipeline stays green); success falls through the empty default.",
+        "type": "Switch",
+        "dependsOn": [
+          {
+            "activity": "NB_dbt_build",
+            "dependencyConditions": ["Succeeded"]
+          }
+        ],
+        "typeProperties": {
+          "on": {
+            "value": "@json(activity('NB_dbt_build').output.result.exitValue).status",
+            "type": "Expression"
+          },
+          "cases": [
+            {
+              "value": "models_failed",
+              "activities": [
+                {
+                  "name": "Fail_models_failed",
+                  "description": "At work: add the Teams activity (same channel, red marker + @mention, message from alert_message) BEFORE this Fail. The Fail itself keeps the pipeline red and carries the alert text into the run history.",
+                  "type": "Fail",
+                  "dependsOn": [],
+                  "typeProperties": {
+                    "message": {
+                      "value": "@json(activity('NB_dbt_build').output.result.exitValue).alert_message",
+                      "type": "Expression"
+                    },
+                    "errorCode": "DbtModelsFailed"
+                  }
+                }
+              ]
+            },
+            {
+              "value": "tests_failed",
+              "activities": [
+                {
+                  "name": "Fail_tests_failed",
+                  "description": "At work: add the Teams activity (same channel, yellow data-quality marker, message from alert_message incl. elementary failing-row samples) BEFORE this Fail.",
+                  "type": "Fail",
+                  "dependsOn": [],
+                  "typeProperties": {
+                    "message": {
+                      "value": "@json(activity('NB_dbt_build').output.result.exitValue).alert_message",
+                      "type": "Expression"
+                    },
+                    "errorCode": "DbtTestsFailed"
+                  }
+                }
+              ]
+            },
+            {
+              "value": "tests_warned",
+              "activities": [
+                {
+                  "name": "TODO_alert_tests_warned",
+                  "description": "Placeholder: at work, replace with the Teams info activity (white marker, message from alert_message). Deliberately no Fail activity in this branch — warn-severity findings must not turn the pipeline red.",
+                  "type": "Wait",
+                  "dependsOn": [],
+                  "typeProperties": {
+                    "waitTimeInSeconds": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "defaultActivities": []
+        }
+      },
+      {
+        "name": "Fail_notebook_crashed",
+        "description": "Crash fallback for runs that never produced an exitValue (token expiry, dbt deps failure, kernel death). At work: add the Teams crash alert BEFORE this Fail. The Fail is required even then: an on-failure branch that ends successfully would flip the whole pipeline to Succeeded (ADF try-catch semantics).",
+        "type": "Fail",
+        "dependsOn": [
+          {
+            "activity": "NB_dbt_build",
+            "dependencyConditions": ["Failed"]
+          }
+        ],
+        "typeProperties": {
+          "message": {
+            "value": "@activity('NB_dbt_build').error.message",
+            "type": "Expression"
+          },
+          "errorCode": "DbtNotebookCrashed"
+        }
       }
     ],
+    "parameters": {
+      "dbt_command": {
+        "type": "string",
+        "defaultValue": "build"
+      },
+      "dbt_select": {
+        "type": "string",
+        "defaultValue": ""
+      },
+      "dbt_full_refresh": {
+        "type": "string",
+        "defaultValue": "false"
+      },
+      "dbt_vars": {
+        "type": "string",
+        "defaultValue": "{}"
+      }
+    },
     "libraryVariables": {
       "VL_workspace_id": {
         "type": "String",

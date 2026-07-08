@@ -29,6 +29,9 @@ you will replace with your own.
   - [6. Snapshots (SCD2 demo)](#6-snapshots-scd2-demo)
   - [7. CI/CD to TEST and PROD](#7-cicd-to-test-and-prod)
 - [Working in a team](#working-in-a-team)
+- [Observability (elementary)](#observability-elementary)
+- [Alerting (failed models and tests)](#alerting-failed-models-and-tests)
+- [Documentation & lineage (docglow)](#documentation--lineage-docglow)
 - [Placeholder reference](#placeholder-reference)
 - [Design decisions](#design-decisions)
 - [Troubleshooting](#troubleshooting)
@@ -241,11 +244,13 @@ included (e.g. `--select +model_name`) because views from previous runs no longe
    OneLake (no default lakehouse / mount required), and invokes exactly one dbt command.
    Parameters: `dbt_command` (default `run`; `build` is the recommended command for
    orchestration — it runs snapshot + run + test in dependency order), `dbt_select`,
-   `dbt_full_refresh`, `dbt_vars`.
+   `dbt_full_refresh`, `dbt_vars`. `PL_Orchestration` exposes the same four as pipeline
+   parameters, so a manual pipeline run can override them without editing anything.
 
 Orchestration pattern: **one pipeline per domain** (Fabric supports only one schedule per
 pipeline), each passing `dbt_select=tag:<domain>` to the same runner notebook. The pipeline is
-the orchestrator; the notebook always executes a single command.
+the orchestrator; the notebook always executes a single command and reports its outcome back
+to the pipeline as a structured exit value (see [Alerting](#alerting-failed-models-and-tests)).
 
 ### 6. Snapshots (SCD2 demo)
 
@@ -320,8 +325,9 @@ Consuming the data:
 
 - **In Fabric** (the primary path): the elementary tables (`dbt_run_results`,
   `elementary_test_results`, `dbt_invocations`, …) are plain Delta tables in the Lakehouse —
-  build a Power BI report on them (Direct Lake works) and attach an Activator or Power BI
-  alert for failures.
+  build a Power BI report on them (Direct Lake works). Failure notifications do NOT go
+  through these tables (see [Alerting](#alerting-failed-models-and-tests) — deliberately no
+  Activator).
 - **Locally** (deep dive): `edr-report` in the VS Code terminal generates elementary's
   standard HTML report (`dbt/edr_target/elementary_report.html`). Because Lakehouses have no
   view concept, duckrun cannot persist elementary's report views to OneLake; the wrapper
@@ -329,6 +335,47 @@ Consuming the data:
   local DuckDB file and recreates the views from dbt's compiled SQL, then points `edr` at
   that mirror (profile `elementary` in `profiles.yml`, path via `ELEMENTARY_MIRROR`).
   Pointing your value set at another workspace lets you deep-dive its history the same way.
+
+## Alerting (failed models and tests)
+
+Alerting is driven by the pipeline, not by an Activator listening on the elementary Delta
+tables — an always-on trigger costs capacity, while the run itself already knows everything
+the alert needs the moment it finishes.
+
+How it works:
+
+- The runner notebook **never raises on dbt failures**. It classifies the outcome —
+  `models_failed` (any node ERROR: broken model/snapshot SQL, incl. tests that error) >
+  `tests_failed` (error-severity test failures) > `tests_warned` (warn-severity findings
+  only) > `success` — and hands a compact JSON to the pipeline via
+  `notebookutils.notebook.exit()`: the status, per-status counts, and a ready-to-post
+  `alert_message`. For failed tests the message includes up to 5 failing-row samples per
+  test (3 tests max), read once from elementary's `test_result_rows` Delta table in the same
+  session.
+- `PL_Orchestration` **switches on `status`**: `models_failed` and `tests_failed` run the
+  alert slot and then an explicit **Fail activity**, so the pipeline still turns red and the
+  alert text lands in the run history; `tests_warned` only informs and leaves the pipeline
+  green; `success` falls through silently.
+- A separate **on-failure branch** (`Fail_notebook_crashed`) catches runs that never
+  produced an exit value at all — token expiry, `dbt deps` failure, kernel death.
+
+Plugging in a channel: the template ships channel-less (the Fail activities carry the alert
+message into the run history). To notify a team, add a Teams or Office 365 Outlook activity
+**in front of** each Fail activity and post `@json(activity('NB_dbt_build').output.result.exitValue).alert_message`
+— the activity descriptions in the pipeline mark the exact slots, including the escalation
+convention (🔴 model errors with @mention, 🟡 data quality, ⚪ warnings). Keep the Fail
+activities: an on-failure branch that ends successfully would otherwise flip the whole
+pipeline to *Succeeded*. Note that a Teams/Outlook connection is environment-specific and
+lands in the git-synced pipeline JSON.
+
+Verifying end-to-end: three var-gated smoke nodes exercise each path without touching real
+models. Run `PL_Orchestration` manually with the matching `dbt_vars` parameter:
+
+| `dbt_vars`                      | node                                  | exercises                                  |
+| ------------------------------- | ------------------------------------- | ------------------------------------------ |
+| `{"smoke_test_fail": "true"}`   | `tests/smoke_test_failure.sql`        | 🟡 `tests_failed` + failing-row samples    |
+| `{"smoke_test_warn": "true"}`   | `tests/smoke_test_warning.sql`        | ⚪ `tests_warned`, pipeline stays green    |
+| `{"smoke_model_error": "true"}` | `models/marts/smoke_model_error.sql`  | 🔴 `models_failed` + downstream skipping   |
 
 ## Documentation & lineage (docglow)
 

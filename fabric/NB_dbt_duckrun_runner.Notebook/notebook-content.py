@@ -118,6 +118,9 @@ print(f"dbt project : {DBT_PROJECT_DIR}")
 
 # CELL ********************
 
+import json
+import re
+
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 
 runner = dbtRunner()
@@ -152,10 +155,154 @@ print(f"Running: dbt {' '.join(str(a) for a in args)}")
 
 result: dbtRunnerResult = runner.invoke(args)
 
-if not result.success:
-    raise RuntimeError(f"dbt {dbt_command} failed — check the log output above for details")
+# --- Classify the outcome for the pipeline ------------------------------------------------
+# dbt failures no longer raise here: an exception would fail the notebook activity before the
+# pipeline could read a structured exitValue. Instead the outcome is classified and handed
+# over via notebookutils.notebook.exit(); PL_Orchestration's Switch turns the status into
+# alerts plus an explicit Fail activity (so failed runs still turn the pipeline red). Hard
+# crashes — deps above, token expiry, or anything that leaves no node results — still raise
+# and are caught by the notebook activity's on-failure path as the fallback alert.
 
-print(f"dbt {dbt_command} completed successfully")
+if result.exception is not None:
+    raise result.exception
+
+node_results = list(getattr(result.result, "results", None) or [])
+if not result.success and not node_results:
+    raise RuntimeError(f"dbt {dbt_command} failed before executing any node — check the log output above")
+
+errors, fails, warns = [], [], []
+skipped = 0
+for r in node_results:
+    status = str(r.status)
+    node = getattr(r, "node", None)
+    entry = {
+        "unique_id": getattr(node, "unique_id", "<unknown>"),
+        "name": getattr(node, "name", "<unknown>"),
+        "resource_type": str(getattr(node, "resource_type", "")),
+        "status": status,
+        "message": (r.message or "")[:300],
+    }
+    if status in ("error", "runtime error"):
+        # Includes tests that ERROR (broken test SQL): that's infrastructure, not data
+        # quality, so it escalates with the models.
+        errors.append(entry)
+    elif status == "fail":
+        fails.append(entry)
+    elif status == "warn":
+        warns.append(entry)
+    elif status == "skipped":
+        skipped += 1
+
+if errors:
+    overall = "models_failed"
+elif fails:
+    overall = "tests_failed"
+elif warns:
+    overall = "tests_warned"
+else:
+    overall = "success"
+
+if not result.success and overall not in ("models_failed", "tests_failed"):
+    raise RuntimeError(
+        f"dbt {dbt_command} reported failure but no node classified as failed — check the log above"
+    )
+
+# --- Failing-row samples from elementary ---------------------------------------------------
+
+SAMPLE_TESTS = 3  # exitValue is a size-limited string: cap enrichment hard
+SAMPLE_ROWS = 5
+
+
+def _elementary_failure_samples(failed_test_ids):
+    """One-off read of elementary's Delta tables right after the run, in the same session —
+    deliberately NOT a Fabric Activator listening on the table. Names verified against
+    elementary 0.25.x: samples live in test_result_rows (store_result_rows_in_own_table
+    defaults to true), linked to elementary_test_results via its id."""
+    from deltalake import DeltaTable
+
+    with open(os.path.join(DBT_PROJECT_DIR, "target", "run_results.json"), encoding="utf-8") as fh:
+        invocation_id = json.load(fh)["metadata"]["invocation_id"]
+
+    base = f"abfss://{WORKSPACE_ID}@onelake.dfs.fabric.microsoft.com/{LH_GOLD_ID}/Tables/elementary"
+    storage_options = {"bearer_token": STORAGE_TOKEN}
+
+    # One row per test result / sample row -> column-pruned full reads are fine at this scale.
+    test_results = (
+        DeltaTable(f"{base}/elementary_test_results", storage_options=storage_options)
+        .to_pyarrow_table(columns=["id", "invocation_id", "test_unique_id"])
+        .to_pylist()
+    )
+    id_to_test = {
+        row["id"]: row["test_unique_id"]
+        for row in test_results
+        if row["invocation_id"] == invocation_id and row["test_unique_id"] in failed_test_ids
+    }
+    if not id_to_test:
+        return {}
+
+    result_rows = (
+        DeltaTable(f"{base}/test_result_rows", storage_options=storage_options)
+        .to_pyarrow_table(columns=["elementary_test_results_id", "result_row"])
+        .to_pylist()
+    )
+    samples = {}
+    for row in result_rows:
+        test_id = id_to_test.get(row["elementary_test_results_id"])
+        if test_id is None or (test_id not in samples and len(samples) >= SAMPLE_TESTS):
+            continue
+        bucket = samples.setdefault(test_id, [])
+        if len(bucket) < SAMPLE_ROWS:
+            bucket.append(str(row["result_row"])[:200])
+    return samples
+
+
+samples, samples_note = {}, ""
+if fails:
+    try:
+        samples = _elementary_failure_samples({f["unique_id"] for f in fails})
+    except Exception as exc:  # enrichment must never kill the alert itself
+        # collapse ANSI-colored, multi-line library messages into one plain line
+        cleaned = " ".join(re.sub(r"\x1b\[[0-9;]*m", "", str(exc)).split())
+        samples_note = "failing-row samples unavailable: " + cleaned[:200]
+
+# --- Compose the alert and hand over to the pipeline ---------------------------------------
+
+icon = {"models_failed": "🔴", "tests_failed": "🟡", "tests_warned": "⚪", "success": "✅"}[overall]
+lines = [
+    f"{icon} dbt {dbt_command} — {overall.replace('_', ' ')} "
+    f"(errors: {len(errors)}, test failures: {len(fails)}, warnings: {len(warns)}, skipped: {skipped})"
+]
+if dbt_select:
+    lines.append(f"selection: {dbt_select}")
+for entry in (errors + fails + warns)[:10]:
+    lines.append(f"- **{entry['name']}** ({entry['resource_type']}, {entry['status']}): {entry['message']}")
+    for sample in samples.get(entry["unique_id"], []):
+        lines.append(f"    · {sample}")
+if samples_note:
+    lines.append(samples_note)
+
+alert_message = "\n".join(lines)
+if len(alert_message) > 3500:
+    alert_message = alert_message[:3500] + "… (truncated)"
+
+payload = {
+    "status": overall,
+    "counts": {
+        "error": len(errors),
+        "fail": len(fails),
+        "warn": len(warns),
+        "skipped": skipped,
+        "total": len(node_results),
+    },
+    "dbt_command": dbt_command,
+    "dbt_select": dbt_select,
+    "alert_message": alert_message,
+}
+
+exit_value = json.dumps(payload, ensure_ascii=False)
+print(f"dbt {dbt_command} finished with status '{overall}'")
+print(exit_value)
+notebookutils.notebook.exit(exit_value)
 
 # METADATA ********************
 

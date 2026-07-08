@@ -2,6 +2,9 @@ version: 2
 
 # Minimal showcase documentation: enough for the docglow site (and its health scoring) to
 # demonstrate what documented models look like. Real projects: document every model/column.
+#
+# Baseline tests double as the data feeding the alerting path (runner exit-JSON ->
+# PL_Orchestration Switch): a failing error-severity test sets status "tests_failed".
 models:
   - name: stg_publicholidays
     description: >
@@ -17,8 +20,12 @@ models:
         description: Country name, German label (duplicate of countryOrRegion for demo purposes)
       - name: countryOrRegion
         description: Country or region the holiday applies to
+        tests:
+          - not_null
       - name: holidayName
         description: Holiday name in the local language
+        tests:
+          - not_null
       - name: normalizeHolidayName
         description: Normalized (ASCII-folded) holiday name
       - name: IsPaidTimeOff
@@ -27,6 +34,8 @@ models:
         description: ISO 3166-1 alpha-2 country code
       - name: date
         description: Calendar date of the holiday
+        tests:
+          - not_null
 
   - name: test_incremental_holidays
     description: >
@@ -36,5 +45,8 @@ models:
     columns:
       - name: holiday_id
         description: Merge key — countryOrRegion plus date
+        tests:
+          - not_null
+          - unique
       - name: run_label
         description: Label of the dbt invocation that last wrote this row (--vars run_label)
