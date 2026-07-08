@@ -11,6 +11,25 @@
 
 # CELL ********************
 
+%%configure
+{
+    "vCores": 2
+}
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# %%configure above pins the session to the smallest Python-notebook size (2 vCores / 16 GB
+# — dbt+duckrun is fine with that); it's a cell magic, so it must stand alone as the first
+# cell with no leading comment. Note: %%configure must run before anything else starts the
+# session, which is why it precedes the pip install.
+#
 # Prerequisites: dbt files must be deployed to LH_Gold/Files/dbt_duckrun/ before running
 # (see .deploy/deploy_dbt_files.py). No default lakehouse is attached to this notebook — the dbt project is
 # downloaded from OneLake via abfss/SDK in the next cell instead of relying on a
