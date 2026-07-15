@@ -1,13 +1,14 @@
-"""Copy dbt/ files to LH_Gold/Files/dbt_duckrun/ in the target workspace.
+"""Copy a runner project's files (dbt/ or ingest/) to LH_Gold/Files/ in the target workspace.
 
-A plain file copy: the uploaded files carry no environment-specific GUIDs -- profiles.yml and
-sources.yml resolve everything from env vars, which the runner notebook sets from the
-workspace's active Variable Library value set at runtime.
+A plain file copy: the uploaded files carry no environment-specific GUIDs -- profiles.yml,
+sources.yml and the dlt configs resolve everything at runtime (env vars / Variable Library,
+set by the respective runner notebook from the workspace's active value set).
 
 Callers: .pipelines/azure-pipelines.yml, .vscode/terminal-init.ps1 (deploy shell function)
 
 Usage:
-    python .deploy/deploy_dbt_files.py --env dev_pm
+    python .deploy/deploy_dbt_files.py --env dev_pm                    # dbt project
+    python .deploy/deploy_dbt_files.py --env dev_pm --project ingest   # dlt configs
     (--env defaults to $DBT_VL_ENV, which the terminal profile sets from .dev-env)
 """
 
@@ -27,6 +28,7 @@ ROOT = Path(__file__).parent.parent
 # Source dir in the repo -> target subdir under LH_Gold/Files/.
 PROJECTS = {
     "dbt": "dbt_duckrun",
+    "ingest": "dlt_ingest",
 }
 
 
@@ -43,7 +45,7 @@ def main():
     parser.add_argument("--env", default=os.environ.get("DBT_VL_ENV", "dev"),
                         help="Variable Library value set name (dev, dev_<initials>, test, prod)")
     parser.add_argument("--project", default="dbt", choices=sorted(PROJECTS),
-                        help="which dbt project to deploy (default: dbt = duckrun POC)")
+                        help="which project to deploy: dbt (duckrun POC) or ingest (dlt configs)")
     args = parser.parse_args()
 
     dbt_dir = ROOT / args.project

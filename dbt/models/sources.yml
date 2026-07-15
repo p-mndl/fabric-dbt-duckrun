@@ -35,3 +35,26 @@ sources:
             tests:
               - not_null
               - unique
+
+  # The handover point of the dlt->dbt demo: NB_dlt_runner (config: ingest/github_issues.yml)
+  # writes these Delta tables into LH_Bronze/Tables/github; from here on they are ordinary
+  # dbt sources. Bronze is raw-append — an issue updated after ingestion appears as a second
+  # row version, so `unique` on id would rightly fail here; stg_github_issues dedupes.
+  - name: github
+    description: GitHub issues loaded by dlt (NB_dlt_runner) — raw, append-only
+    tables:
+      - name: issues
+        description: >
+          Issues (and pull requests — GitHub's /issues endpoint includes them) of the
+          repository configured in ingest/github_issues.yml, incremental on updated_at.
+          Nested JSON is flattened by dlt (user -> user__login etc.); list fields land in
+          child tables like github.issues__labels (not declared here — add them as sources
+          when a model needs them).
+        meta:
+          plugin: duckrun
+          delta_table_path: "abfss://{{ env_var('SRC_WORKSPACE_ID') }}@onelake.dfs.fabric.microsoft.com/{{ env_var('LH_BRONZE_ID') }}/Tables/github/issues"
+        columns:
+          - name: id
+            description: GitHub's stable issue id (deduplication key for staging)
+            tests:
+              - not_null

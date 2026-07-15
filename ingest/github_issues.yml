@@ -1,0 +1,40 @@
+# Declarative dlt ingestion config, consumed by NB_dlt_runner. Same pattern as the dbt
+# project: this file is deployed to LH_Gold/Files/dlt_ingest/ (deploy --project ingest) and
+# downloaded by the runner notebook at runtime — the notebook itself contains no
+# pipeline-specific code, and nothing environment-specific lives here.
+#
+# `source` is a dlt rest_api source config
+# (https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api/): pagination, retries,
+# typing, schema evolution and the flattening of nested JSON into child tables
+# (issues -> issues__labels) all derive from this declaration — no imperative requests code.
+
+# pipeline_name keys dlt's state in the destination — renaming it orphans the stored
+# incremental cursor and the next run starts over from initial_value.
+pipeline_name: github_issues
+dataset_name: github           # schema folder under LH_Bronze/Tables/
+
+source:
+  client:
+    base_url: https://api.github.com
+    paginator: header_link     # GitHub paginates via the Link response header
+  resource_defaults:
+    write_disposition: append  # bronze stays raw and immutable — deduplication is dbt's job
+  resources:
+    - name: issues
+      endpoint:
+        # A busy public repo so the demo has data; swap for any owner/repo. Note GitHub's
+        # /issues endpoint includes pull requests. Unauthenticated = 60 requests/h, plenty
+        # for incremental runs.
+        path: repos/dlt-hub/dlt/issues
+        params:
+          state: all
+          per_page: 100
+          # Incremental cursor: dlt remembers the highest updated_at seen (state is stored
+          # IN the destination, so it survives Fabric's ephemeral notebook sessions) and
+          # passes it as `since` on the next run — only new/changed issues come back.
+          # Updated issues are appended as a second version of the row; the dbt staging
+          # model keeps the latest version per id.
+          since:
+            type: incremental
+            cursor_path: updated_at
+            initial_value: "2026-06-01T00:00:00Z"

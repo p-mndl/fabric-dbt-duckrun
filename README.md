@@ -28,6 +28,7 @@ you will replace with your own.
   - [5. Run dbt inside Fabric](#5-run-dbt-inside-fabric)
   - [6. Snapshots (SCD2 demo)](#6-snapshots-scd2-demo)
   - [7. CI/CD to TEST and PROD](#7-cicd-to-test-and-prod)
+- [Ingestion (dlt)](#ingestion-dlt)
 - [Working in a team](#working-in-a-team)
 - [Observability (elementary)](#observability-elementary)
 - [Alerting (failed models and tests)](#alerting-failed-models-and-tests)
@@ -47,7 +48,7 @@ One Fabric workspace per environment (DEV / TEST / PROD), three lakehouses per w
 
 | Lakehouse | Purpose | Managed by |
 |---|---|---|
-| `LH_Bronze` | Raw data (ingestion layer — **not** dbt's job) | External tools (Copy Job, pipelines, notebooks) |
+| `LH_Bronze` | Raw data (ingestion layer — **not** dbt's job) | External tools (Copy Job, pipelines, notebooks); demo: [dlt](#ingestion-dlt) via `NB_dlt_runner` |
 | `LH_Silver` | dbt snapshots (SCD2 history) | dbt via duckrun's multi-catalog config |
 | `LH_Gold` | Curated output tables + the deployed dbt project files (`Files/dbt_duckrun/`) | dbt via duckrun / `.deploy/deploy_dbt_files.py` |
 
@@ -60,6 +61,7 @@ Fabric items shipped in this repo:
 |---|---|
 | `NB_dbt_duckrun_runner` | Parameterized notebook: downloads the dbt project from `LH_Gold/Files/` and runs exactly one dbt command (`dbt_command`, `dbt_select`, `dbt_full_refresh`, `dbt_vars`) |
 | `PL_Orchestration` | Demo Data Pipeline showing the pattern: one activity calling the runner notebook with `dbt build` (IDs resolved through the Variable Library) |
+| `NB_dlt_runner` | Parameterized notebook: downloads the declarative dlt configs from `LH_Gold/Files/dlt_ingest/` and runs exactly one ingestion pipeline into `LH_Bronze` (see [Ingestion (dlt)](#ingestion-dlt)) |
 | `NB_scd2_test_mutator` | Disposable test scaffolding: deterministically mutates a fake source table so `dbt snapshot` has something to version |
 | `VL` (Variable Library) | **Single source of truth for all environment GUIDs** — read locally by the deploy scripts and at runtime by the notebook; `valueSets/{test,prod}.json` override per environment |
 
@@ -155,8 +157,12 @@ this template uses, see the [duckrun dbt-adapter docs](https://djouallah.github.
 │   ├── VL.VariableLibrary/         All environment GUIDs + valueSets for test/prod
 │   ├── LH_Bronze / LH_Silver / LH_Gold (.Lakehouse)
 │   ├── NB_dbt_duckrun_runner.Notebook/
+│   ├── NB_dlt_runner.Notebook/     Generic runner for the declarative ingest/ configs
 │   ├── NB_scd2_test_mutator.Notebook/
 │   └── PL_Orchestration.DataPipeline/
+├── ingest/
+│   └── github_issues.yml           Declarative dlt rest_api config (GitHub issues demo);
+│                                   deployed to LH_Gold/Files/dlt_ingest/ (deploy --project ingest)
 └── dbt/
     ├── dbt_project.yml             Project "fabric_duckrun"; models → schema "demo"; snapshots → silver
     ├── profiles.yml                type: duckrun; single target "fabric" + silver catalog (env vars only)
@@ -164,7 +170,7 @@ this template uses, see the [duckrun dbt-adapter docs](https://djouallah.github.
     ├── snapshots/scd2_test_source_snapshot.yml   SCD2 check-strategy snapshot (YAML-only syntax)
     └── models/
         ├── sources.yml             duckrun source plugin → LH_Bronze Delta tables
-        ├── staging/stg_publicholidays.sql
+        ├── staging/stg_publicholidays.sql, stg_github_issues.sql (dedupes dlt's raw append)
         └── marts/dim_publicholidays.sql, test_incremental_holidays.sql (incremental merge demo)
 ```
 
@@ -290,6 +296,92 @@ switching the VL's active value set to the target environment) and `deploy_dbt_f
    with `ResourceNotFoundError` because `valueSets/<env>.json` still carries placeholder
    lakehouse GUIDs. Copy the real GUIDs from the freshly created lakehouses into the value set,
    merge, and re-run — from then on the pipeline is fully hands-off.
+
+## Ingestion (dlt)
+
+The EL counterpart to the dbt setup: instead of hand-rolled `requests` loops, REST APIs are
+ingested with [dlt](https://dlthub.com/)'s declarative
+[`rest_api` source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api/) —
+pagination, retries, typing, schema evolution and the flattening of nested JSON into child
+tables all derive from a config file, not from code. The demo pipeline loads the issues of a
+public GitHub repository incrementally into `LH_Bronze`.
+
+**The pattern deliberately mirrors dbt's:**
+
+| | dbt | dlt |
+|---|---|---|
+| Project files in repo | `dbt/` | `ingest/` (one YAML per pipeline) |
+| Deployed to | `LH_Gold/Files/dbt_duckrun/` | `LH_Gold/Files/dlt_ingest/` |
+| Deploy command | `deploy` | `deploy --project ingest` |
+| Runner notebook (just a runner) | `NB_dbt_duckrun_runner` | `NB_dlt_runner` |
+| Parameters | `dbt_command`, `dbt_select`, `dbt_full_refresh`, `dbt_vars` | `dlt_config`, `dlt_resources`, `dlt_full_refresh` |
+| Writes via | duckrun → delta-rs | dlt filesystem destination → delta-rs |
+| Pipeline handover | exit-JSON (`status`, `alert_message`) | exit-JSON (`status`, `row_counts`, `alert_message`) |
+
+Neither runner contains pipeline-specific logic; both download their project from
+`LH_Gold/Files/` at runtime and resolve every GUID from the workspace's active Variable
+Library value set. No Spark either way — dlt writes Delta tables through delta-rs exactly
+like duckrun does.
+
+**Where dlt ends and dbt begins.** dlt owns Extract + Load: HTTP, pagination, incremental
+cursors, type inference, schema evolution, nested-list child tables (`issues__labels`), and
+writing Delta to `Tables/<dataset>/<table>` in `LH_Bronze`. Bronze stays a raw, append-only
+log: an issue updated after ingestion is appended as a second row version (dlt could merge
+at load time, but deliberately doesn't here). Everything semantic is dbt's job, starting
+with `stg_github_issues`, which keeps the latest version per `id` — that model plus the
+`github` source in `sources.yml` are the entire handover.
+
+**Incremental state survives ephemeral sessions.** dlt stores each pipeline's state
+(e.g. the highest `updated_at` seen) in the destination itself
+(`_dlt_pipeline_state` under `Tables/github/`), and restores it from there when the pipeline
+runs in a fresh session. A scheduled `NB_dlt_runner` therefore only fetches new/changed
+issues — no state files to manage, nothing to mount. `dlt_full_refresh=true` runs with
+`refresh="drop_sources"`: tables *and* stored state are dropped and reloaded from the
+config's `initial_value`.
+
+**How dlt authenticates to OneLake** (the one non-obvious part, encapsulated in a single
+cell of `NB_dlt_runner`): dlt touches OneLake on two paths — adlfs/fsspec for its
+bookkeeping files and delta-rs for the Delta writes. The notebook wraps the
+`notebookutils.credentials.getToken("storage")` token in a minimal `TokenCredential` and
+hands it to `AzureCredentials.from_credential(...)` (dlt ≥ 1.29 "external session"): adlfs
+receives the live credential object (plus the explicit
+`account_host: onelake.blob.fabric.microsoft.com`, since adlfs only auto-detects
+`*.core.windows.net` accounts), delta-rs receives a frozen bearer token plus
+`use_fabric_endpoint`. Secrets for real APIs (tokens, client secrets) don't go into the
+YAML: dlt resolves them from env vars — fetch them from a Key Vault via
+`notebookutils.credentials.getSecret(...)` and export before `pipeline.run()`.
+
+First run:
+
+1. `deploy --project ingest` — uploads `ingest/` to `LH_Gold/Files/dlt_ingest/`.
+2. Run `NB_dlt_runner` (defaults run `github_issues.yml`). Check `LH_Bronze/Tables/github/`.
+3. Run it again: the exit JSON now reports zero or few rows — the incremental cursor at work.
+4. `dbt build --select stg_github_issues` — dedupe + tests over the raw table.
+
+Do step 2 before the first full `dbt build`: the `github` source tests error until the
+bronze table exists (same chicken-and-egg as the public-holidays sample data).
+
+Caveats:
+
+- dlt's bookkeeping (`_dlt_loads`, `_dlt_pipeline_state`, `_dlt_version`) lives as jsonl
+  folders next to the data tables and shows up under *Unidentified* in the Lakehouse
+  explorer. Harmless — don't delete it, the incremental state lives there.
+- The demo calls the GitHub API unauthenticated (60 requests/h) — fine for incremental runs;
+  for a first load of a very busy repo, raise `initial_value` or export a token.
+- **Team setups:** the runner writes to the read-side bronze (`src_workspace_id`/`lh_bronze`
+  — exactly where dbt's sources read). Developer value sets usually point that at the
+  *shared* TEST bronze, so running the ingestion notebook under such a value set writes to
+  shared data. Ingestion is an environment-level concern: run it in the workspace that owns
+  the bronze, not from personal dev value sets.
+- The pipeline logic (pagination, incremental cursor + state restore across fresh sessions,
+  full refresh, Delta output, the staging dedupe) was verified against a GitHub-API mock
+  with a local Delta destination; the OneLake write path is assembled from dlt's documented
+  Fabric support but not yet exercised against a live tenant — if the first real run fails,
+  it will fail in the destination/auth cell of `NB_dlt_runner`.
+
+Not wired into `PL_Orchestration` yet — schedule it the same way as the dbt runner when
+needed: one notebook activity, `dlt_config` as the parameter, switching on the exit JSON's
+`status` (`success` / `ingestion_failed`).
 
 ## Working in a team
 
@@ -459,6 +551,7 @@ all; nothing else in the repo is tenant-specific.
 | Package | Maintainer | Version |
 |---|---|---|
 | duckrun | Community (djouallah) | pinned in `requirements.txt` (0.3.33, same pin in the runner notebook) |
+| dlt | dltHub | pinned in `NB_dlt_runner` only (1.29.0, `[az,deltalake]` extras) — not in `requirements.txt`, since ingestion runs in Fabric |
 | dbt-core / dbt-duckdb | dbt Labs / Community | transitive via duckrun |
 | azure-storage-file-datalake | Microsoft | >= 12.14.0 (deploy script + notebook) |
 | fabric-cicd | Microsoft | unpinned, installed in the pipeline only |
