@@ -329,3 +329,59 @@ notebookutils.notebook.exit(exit_value)
 # META   "language": "python",
 # META   "language_group": "jupyter_python"
 # META }
+
+# CELL ********************
+
+# FROZEN legacy cell — the pre-alerting dbt cell (997c93c), kept verbatim below this comment
+# for side-by-side comparison: freeze the cell above, unfreeze this one, and run with a smoke
+# var to observe what a failing test/model really does without the exit-JSON handling
+# (expectation: raise -> cell fails -> notebook fails -> pipeline activity fails). Frozen so
+# neither "Run all" nor pipeline runs execute dbt twice.
+
+from dbt.cli.main import dbtRunner, dbtRunnerResult
+
+runner = dbtRunner()
+
+# dbt packages (elementary) are not part of the deploy: dbt_packages/ is gitignored and
+# deploy_dbt_files.py copies git-tracked files only. Install them here instead —
+# package-lock.yml IS deployed, so this resolves to the exact pinned versions.
+deps_result: dbtRunnerResult = runner.invoke(
+    ["deps", "--project-dir", DBT_PROJECT_DIR, "--profiles-dir", DBT_PROJECT_DIR]
+)
+if not deps_result.success:
+    raise RuntimeError("dbt deps failed — check the log output above for details")
+
+# No --target flag: the downloaded profiles.yml has a single target whose GUIDs were already
+# rewritten for this environment at deploy time (see .deploy/deploy_dbt_files.py).
+args = [
+    dbt_command,
+    "--project-dir", DBT_PROJECT_DIR,
+    "--profiles-dir", DBT_PROJECT_DIR,
+]
+
+if dbt_select:
+    args += ["--select", dbt_select]
+
+if str(dbt_full_refresh).lower() == "true":
+    args.append("--full-refresh")
+
+if dbt_vars and dbt_vars.strip() not in ("", "{}"):
+    args += ["--vars", dbt_vars]
+
+print(f"Running: dbt {' '.join(str(a) for a in args)}")
+
+result: dbtRunnerResult = runner.invoke(args)
+
+if not result.success:
+    raise RuntimeError(f"dbt {dbt_command} failed — check the log output above for details")
+
+print(f"dbt {dbt_command} completed successfully")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python",
+# META   "frozen": false,
+# META   "editable": true
+# META }
