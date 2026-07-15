@@ -181,9 +181,10 @@ this template uses, see the [duckrun dbt-adapter docs](https://djouallah.github.
 ### 1. Create the DEV workspace and connect git
 
 1. Create a workspace (e.g. `DEV_dbt`), assign it to your capacity.
-2. Workspace settings → **Git integration** → connect to this repo, branch `dev` (or `main`),
-   and set the **folder to `fabric/`**. This is a portal-only setting — nothing in the repo
-   enforces it, but without it the sync would try to treat the whole repo as Fabric items.
+2. Workspace settings → **Git integration** → connect to this repo, branch `main` (switch to
+   the feature branch you are working on as needed), and set the **folder to `fabric/`**. This
+   is a portal-only setting — nothing in the repo enforces it, but without it the sync would
+   try to treat the whole repo as Fabric items.
 3. Sync. Fabric creates the three lakehouses, both notebooks, the pipeline, and the Variable
    Library in the workspace.
 
@@ -266,7 +267,8 @@ via the `silver` catalog.
 
 ### 7. CI/CD to TEST and PROD
 
-Branch model: `dev` (git-synced with the DEV workspace) → PR to `test` → PR to `prod`. The
+Branch model: work happens on `main` or a feature branch (whichever the DEV workspace is
+git-synced to) → PR to `test` → PR to `prod`. The
 pipeline (`.pipelines/azure-pipelines.yml`) triggers on pushes to `test`/`prod` and runs two
 scripts: `deploy_fabric_items.py` (promotes lakehouses/notebooks/pipeline/VL via `fabric-cicd`,
 switching the VL's active value set to the target environment) and `deploy_dbt_files.py`
