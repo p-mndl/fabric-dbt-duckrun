@@ -4,27 +4,27 @@
   "variableOverrides": [
     {
       "name": "workspace_id",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+      "value": "5ddc427f-81ac-4a0b-8192-c7ecce0b8338"
     },
     {
       "name": "src_workspace_id",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+      "value": "5ddc427f-81ac-4a0b-8192-c7ecce0b8338"
     },
     {
       "name": "lh_bronze",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2"
+      "value": "0ce9a584-b70c-4828-b952-42d8e2aa6e31"
     },
     {
       "name": "lh_silver",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3"
+      "value": "5e9e5b2b-f7d9-4907-bbd5-270209fa6bcd"
     },
     {
       "name": "lh_gold",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4"
+      "value": "fc720fff-3091-47e7-b8f9-d8046e716191"
     },
     {
       "name": "nb_dbt_runner",
-      "value": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5"
+      "value": "d224eb22-ee20-49dc-8be1-4426ac266f8a"
     }
   ]
 }
