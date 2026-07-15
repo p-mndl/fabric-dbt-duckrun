@@ -34,3 +34,4 @@ steps:
         pip install fabric-cicd azure-storage-file-datalake
         python .deploy/deploy_fabric_items.py --env $(target_env)
         python .deploy/deploy_dbt_files.py --env $(target_env)
+        python .deploy/deploy_dbt_files.py --env $(target_env) --project ingest
