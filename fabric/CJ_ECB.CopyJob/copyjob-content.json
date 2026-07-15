@@ -1,0 +1,423 @@
+{
+  "properties": {
+    "jobMode": "Batch",
+    "source": {
+      "type": "DelimitedText",
+      "connectionSettings": {
+        "type": "HttpServer",
+        "externalReferences": {
+          "connection": "b15f9aed-b96e-445a-8ec4-ba965f6dae99"
+        }
+      }
+    },
+    "destination": {
+      "type": "LakehouseTable",
+      "connectionSettings": {
+        "type": "Lakehouse",
+        "typeProperties": {
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "artifactId": "7e96f39b-91b4-43b2-9d28-1edf07696483",
+          "rootFolder": "Tables"
+        }
+      }
+    },
+    "policy": {
+      "timeout": "0.12:00:00",
+      "retry": 0
+    }
+  },
+  "activities": [
+    {
+      "id": "d5c9a60e-aeff-4f55-aa95-b196149ff1f0",
+      "properties": {
+        "source": {
+          "datasetSettings": {
+            "location": {
+              "type": "HttpServerLocation"
+            },
+            "columnDelimiter": ",",
+            "escapeChar": "\\",
+            "firstRowAsHeader": true,
+            "quoteChar": "\""
+          },
+          "storeSettings": {
+            "requestMethod": "GET"
+          },
+          "formatSettings": {}
+        },
+        "destination": {
+          "writeBehavior": "Append",
+          "datasetSettings": {
+            "schema": "dbo",
+            "table": "HttpServerFile"
+          },
+          "applyVOrder": false
+        },
+        "enableStaging": false,
+        "translator": {
+          "type": "TabularTranslator",
+          "mappings": [
+            {
+              "source": {
+                "name": "KEY",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "KEY",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "FREQ",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "FREQ",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "CURRENCY",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "CURRENCY",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "CURRENCY_DENOM",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "CURRENCY_DENOM",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "EXR_TYPE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "EXR_TYPE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "EXR_SUFFIX",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "EXR_SUFFIX",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "TIME_PERIOD",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "TIME_PERIOD",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "OBS_VALUE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "OBS_VALUE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "OBS_STATUS",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "OBS_STATUS",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "OBS_CONF",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "OBS_CONF",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "OBS_PRE_BREAK",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "OBS_PRE_BREAK",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "OBS_COM",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "OBS_COM",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "TIME_FORMAT",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "TIME_FORMAT",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "BREAKS",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "BREAKS",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "COLLECTION",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "COLLECTION",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "COMPILING_ORG",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "COMPILING_ORG",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "DISS_ORG",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "DISS_ORG",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "DOM_SER_IDS",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "DOM_SER_IDS",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "PUBL_ECB",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "PUBL_ECB",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "PUBL_MU",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "PUBL_MU",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "PUBL_PUBLIC",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "PUBL_PUBLIC",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "UNIT_INDEX_BASE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "UNIT_INDEX_BASE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "COMPILATION",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "COMPILATION",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "COVERAGE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "COVERAGE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "DECIMALS",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "DECIMALS",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "NAT_TITLE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "NAT_TITLE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "SOURCE_AGENCY",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "SOURCE_AGENCY",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "SOURCE_PUB",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "SOURCE_PUB",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "TITLE",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "TITLE",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "TITLE_COMPL",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "TITLE_COMPL",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "UNIT",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "UNIT",
+                "physicalType": "string"
+              }
+            },
+            {
+              "source": {
+                "name": "UNIT_MULT",
+                "type": "String",
+                "physicalType": "String"
+              },
+              "destination": {
+                "name": "UNIT_MULT",
+                "physicalType": "string"
+              }
+            }
+          ]
+        },
+        "typeConversionSettings": {
+          "typeConversion": {
+            "allowDataTruncation": true,
+            "treatBooleanAsNumber": false
+          }
+        }
+      }
+    }
+  ]
+}
