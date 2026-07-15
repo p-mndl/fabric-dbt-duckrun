@@ -6,6 +6,10 @@ trigger:
   branches:
     include: [test, prod]
 
+# GitHub-hosted pipelines run PR validation builds by default (unlike ADO repos, where PR
+# builds come from branch policies). A deploy must only run on the actual push to test/prod.
+pr: none
+
 variables:
   - name: target_env
     value: ${{ replace(variables['Build.SourceBranch'], 'refs/heads/', '') }}
