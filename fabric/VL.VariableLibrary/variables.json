@@ -3,39 +3,39 @@
   "variables": [
     {
       "name": "workspace_id",
-      "note": "DEV workspace",
+      "note": "DEV_Duckrun",
       "type": "Guid",
-      "value": "11111111-1111-1111-1111-111111111111"
+      "value": "3ad03a95-9105-49ea-a347-666652d5d321"
     },
     {
       "name": "src_workspace_id",
       "note": "Workspace the bronze source tables live in (read side); per-developer value sets typically point this at the shared TEST workspace",
       "type": "Guid",
-      "value": "11111111-1111-1111-1111-111111111111"
+      "value": "3ad03a95-9105-49ea-a347-666652d5d321"
     },
     {
       "name": "lh_bronze",
       "note": "Bronze lakehouse inside src_workspace_id (read side)",
       "type": "Guid",
-      "value": "22222222-2222-2222-2222-222222222222"
+      "value": "bd548972-0a6d-44cb-bccc-03ecbc1e38fa"
     },
     {
       "name": "lh_silver",
       "note": "Replace with the real Lakehouse GUID from the workspace after the first git sync",
       "type": "Guid",
-      "value": "33333333-3333-3333-3333-333333333333"
+      "value": "6fb2f6f7-c402-4f0c-a096-0be4e51481f5"
     },
     {
       "name": "lh_gold",
       "note": "Replace with the real Lakehouse GUID from the workspace after the first git sync",
       "type": "Guid",
-      "value": "44444444-4444-4444-4444-444444444444"
+      "value": "d92a044c-82fd-4e0e-9191-3ba8c4421a2e"
     },
     {
       "name": "nb_dbt_runner",
       "note": "",
       "type": "Guid",
-      "value": "55555555-5555-5555-5555-555555555555"
+      "value": "6e387314-2b55-4379-a02a-93f8005221cb"
     }
   ]
 }

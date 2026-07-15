@@ -1,4 +1,4 @@
-# Promotes this repo from dev (git-synced with the Fabric DEV workspace) to test/prod.
+# Promotes this repo from dev (git-synced with the Fabric DEV_Duckrun workspace) to test/prod.
 # Triggered by merging the `test` or `prod` branch (PR from main -> test, then test -> prod).
 # No ADO Environments / approval gates for this PoC -- add them later if needed.
 
@@ -25,8 +25,8 @@ steps:
   - task: AzureCLI@2
     displayName: "Deploy to Fabric ($(target_env))"
     inputs:
-      # Service connection "<SERVICE_CONNECTION_NAME>" has write access to the test/prod Fabric workspaces.
-      azureSubscription: "<SERVICE_CONNECTION_NAME>"
+      # Service connection "sc_dbt_poc" has write access to the test/prod Fabric workspaces.
+      azureSubscription: "sc_dbt_poc"
       scriptType: bash
       scriptLocation: inlineScript
       inlineScript: |
