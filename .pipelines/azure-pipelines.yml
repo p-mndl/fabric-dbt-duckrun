@@ -1,10 +1,14 @@
-# Promotes this repo from dev (git-synced with the Fabric DEV_Duckrun workspace) to test/prod.
-# Triggered by merging the `test` or `prod` branch (PR from main -> test, then test -> prod).
+# Promotes this repo to test/prod. Development happens on feature branches (git-synced with
+# the Fabric DEV_Duckrun workspace); PR feature -> test, then test -> prod triggers this.
 # No ADO Environments / approval gates for this PoC -- add them later if needed.
 
 trigger:
   branches:
     include: [test, prod]
+
+# GitHub-hosted pipelines run PR validation builds by default (unlike ADO repos, where PR
+# builds come from branch policies). A deploy must only run on the actual push to test/prod.
+pr: none
 
 variables:
   - name: target_env
