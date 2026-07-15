@@ -11,6 +11,22 @@ models:
       Staging view over the bronze public-holidays sample: 1:1 column selection, no
       transformations. Ephemeral — inlined into downstream models at compile time.
 
+  - name: stg_github_issues
+    description: >
+      Latest version per issue from the raw-append github.issues bronze table (loaded by
+      dlt via NB_dlt_runner). Deduplication happens here and not at ingestion time — bronze
+      stays an immutable append log. Ephemeral, like all staging models.
+    columns:
+      - name: id
+        description: GitHub's stable issue id — unique again after deduplication
+        tests:
+          - not_null
+          - unique
+      - name: state
+        description: open or closed
+      - name: author
+        description: Login of the issue creator (flattened by dlt from the nested user object)
+
   - name: dim_publicholidays
     description: >
       German public holidays dimension (demo mart). Filters staging to Germany and adds a
