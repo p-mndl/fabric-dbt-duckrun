@@ -226,6 +226,19 @@ payload = {
 exit_value = json.dumps(payload, ensure_ascii=False)
 print(f"dlt pipeline finished with status '{status}'")
 print(exit_value)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# notebookutils.notebook.exit() raises to halt the run, which Fabric renders as a failed
+# cell even on a successful pipeline — kept in its own cell so that stray traceback doesn't
+# get attributed to the ingestion logic above.
 notebookutils.notebook.exit(exit_value)
 
 # METADATA ********************
