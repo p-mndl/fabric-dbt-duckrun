@@ -375,6 +375,18 @@ service identity — for a manual run that's the signed-in user, who needs **Get
 on the vault's secrets (RBAC-mode vaults: the *Key Vault Secrets User* role); a
 pipeline-triggered run would need the same for whichever identity runs the pipeline.
 
+For token endpoints that predate OAuth2 (POST the credentials as JSON, token somewhere else
+in the response — e.g. Personio v1's `/v1/auth` with the token under `data.token`), the
+runner registers one custom auth type, `token_exchange`, taking the same fields plus a
+`token_json_path`. The shipped `personio_*.yml` configs demonstrate both flavors —
+`personio_attendance.yml` / `personio_report.yml` (v2, plain `oauth2_client_credentials`,
+cursor pagination via `_meta.links.next.href`) and `personio_document_categories.yml` (v1,
+`token_exchange`); all three verified end-to-end against a Personio API mock enforcing the
+auth contracts. Note the report config's caveat comment: report rows arrive as arrays of
+cell objects and land nested — and a document *upload* (`POST /v1/company/documents`) is
+not an ingestion job at all; dlt only pulls data into bronze, pushing files back out needs
+its own notebook.
+
 First run:
 
 1. `deploy --project ingest` — uploads `ingest/` to `LH_Gold/Files/dlt_ingest/`.
