@@ -36,6 +36,12 @@
       "note": "",
       "type": "Guid",
       "value": "6e387314-2b55-4379-a02a-93f8005221cb"
+    },
+    {
+      "name": "key_vault_url",
+      "note": "Azure Key Vault used by NB_dlt_runner to resolve `keyvault_secret` references in a source config's auth block (client secrets, API keys, ...). notebookutils.credentials.getSecret authenticates as whoever/whatever is running the notebook (the signed-in user for a manual run) — that identity needs 'Get' permission on the vault's secrets (Key Vault Secrets User role, for RBAC-mode vaults).",
+      "type": "String",
+      "value": "https://pmndl-test-kv.vault.azure.net/"
     }
   ]
 }
