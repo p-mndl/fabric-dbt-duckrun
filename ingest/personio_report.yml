@@ -1,0 +1,35 @@
+# Personio v2: one company report by UUID (a report previously built in Personio's UI).
+# API reference: https://developer.personio.de/reference/getreport
+# Find the UUID via GET /v2/reports (list endpoint) or the report's URL in the Personio UI.
+#
+# Same OAuth2 client credentials auth as personio_attendance.yml (same credentials work).
+#
+# Shape caveat: report rows arrive as ARRAYS of cell objects (one entry per column), not as
+# flat key/value records — the column names live separately in `_meta.columns`, which this
+# config does not capture. The bronze table therefore lands nested (dlt puts the row array
+# into a child table); mapping cells to column names is the dbt staging model's job. If a
+# report is needed as a clean wide table, prefer rebuilding it from the underlying v2
+# entity endpoints (persons, attendance, absences) instead of the report API.
+
+pipeline_name: personio_report
+dataset_name: personio   # -> LH_Bronze/Tables/personio/
+
+source:
+  client:
+    base_url: https://api.personio.de
+    auth:
+      type: oauth2_client_credentials
+      access_token_url: https://api.personio.de/v2/auth/token
+      client_id: REPLACE-WITH-PERSONIO-CLIENT-ID
+      client_secret: {keyvault_secret: personio-client-secret}
+  resources:
+    - name: report
+      write_disposition: replace   # a report is a current snapshot, not an event log
+      endpoint:
+        path: v2/reports/REPLACE-WITH-REPORT-UUID
+        data_selector: _data
+        paginator:
+          type: json_link
+          next_url_path: _meta.links.next.href
+        params:
+          limit: 100

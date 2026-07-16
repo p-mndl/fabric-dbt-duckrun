@@ -1,0 +1,42 @@
+# Personio v2: attendance periods, loaded incrementally by updated_at.
+# API reference: https://developer.personio.de/reference/get_v2-attendance-periods
+#
+# Auth is standard OAuth2 client credentials (https://api.personio.de/v2/auth/token);
+# generate the credentials in Personio under Settings > Integrations > API credentials,
+# put the client secret into the Key Vault (name below), and replace the client_id.
+# The resulting token is stable for 24h; dlt fetches it once per run.
+#
+# v2 list responses share one shape: rows in `_data`, next page as a ready-to-follow URL in
+# `_meta.links.next.href` (cursor embedded in the URL) — hence json_link pagination.
+
+pipeline_name: personio_attendance
+dataset_name: personio   # -> LH_Bronze/Tables/personio/
+
+source:
+  client:
+    base_url: https://api.personio.de
+    auth:
+      type: oauth2_client_credentials
+      access_token_url: https://api.personio.de/v2/auth/token
+      client_id: REPLACE-WITH-PERSONIO-CLIENT-ID
+      client_secret: {keyvault_secret: personio-client-secret}
+  resource_defaults:
+    write_disposition: append   # bronze stays raw; updated periods land as a second row
+                                # version — dedupe (latest per id) is the dbt staging model's job
+  resources:
+    - name: attendance_periods
+      endpoint:
+        path: v2/attendance-periods
+        data_selector: _data
+        paginator:
+          type: json_link
+          next_url_path: _meta.links.next.href
+        params:
+          limit: 100
+          # Incremental cursor: dlt remembers the highest updated_at seen (state stored in
+          # the destination, survives ephemeral Fabric sessions) and passes it as the
+          # `updated_at.gte` filter on the next run.
+          updated_at.gte:
+            type: incremental
+            cursor_path: updated_at
+            initial_value: "2020-01-01T00:00:00Z"
