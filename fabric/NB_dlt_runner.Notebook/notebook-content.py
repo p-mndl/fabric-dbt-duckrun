@@ -146,6 +146,41 @@ from dlt.sources.rest_api import rest_api_source
 with open(os.path.join(DLT_CONFIG_DIR, dlt_config), encoding="utf-8") as fh:
     cfg = yaml.safe_load(fh)
 
+# --- Resolve Key Vault secret references inside auth blocks --------------------------------
+# Configs load as a plain dict (yaml.safe_load), so dlt's own dlt.secrets[...] resolution
+# never runs — a source needing a client_id/secret -> bearer exchange (dlt's built-in
+# "oauth2_client_credentials" auth type, or any other auth type) writes the secret as a
+# sentinel instead of a literal value:
+#   auth:
+#     type: oauth2_client_credentials
+#     client_id: my-client-id                          # not secret, fine as a literal
+#     client_secret: {keyvault_secret: myapi-client-secret}
+# Scoped deliberately to auth blocks only (client-level and per-resource endpoint overrides)
+# — not a general-purpose templating engine over the whole config.
+KEY_VAULT_URL = vl.key_vault_url
+
+
+def resolve_auth_secrets(auth_cfg):
+    if not isinstance(auth_cfg, dict):
+        return auth_cfg
+    return {
+        k: notebookutils.credentials.getSecret(KEY_VAULT_URL, v["keyvault_secret"])
+        if isinstance(v, dict) and "keyvault_secret" in v
+        else v
+        for k, v in auth_cfg.items()
+    }
+
+
+client_cfg = cfg["source"].setdefault("client", {})
+if "auth" in client_cfg:
+    client_cfg["auth"] = resolve_auth_secrets(client_cfg["auth"])
+
+for resource in cfg["source"].get("resources", []):
+    if isinstance(resource, dict):
+        endpoint = resource.get("endpoint")
+        if isinstance(endpoint, dict) and "auth" in endpoint:
+            endpoint["auth"] = resolve_auth_secrets(endpoint["auth"])
+
 # --- Destination: LH_Bronze/Tables via OneLake --------------------------------------------
 # dlt reaches OneLake on two paths, and the "external session" credential feeds both:
 #   * adlfs (fsspec) for dlt's own bookkeeping files — gets the credential OBJECT, plus the
