@@ -1,5 +1,17 @@
 # Handoff: duckrun read-only command performance (djouallah/duckrun#16)
 
+> **Status 2026-07-21 — umgesetzt, PR bereit zum Einreichen.** Upstream hatte mit
+> 0.4.28/0.4.29 bereits Teile hiervon gebaut (konkurrente delta-rs-Opens pro Schema, ein Open
+> für Tombstone+Docs, Schema-Create einmal pro Schema) — half aber nicht genug (Issue-Verlauf:
+> 90s-Log). Neu-Herleitung aus den Debug-Logs ergab die zwei Restkosten: (a) die Schemas werden
+> von dbt seriell abgearbeitet (duckrun pinnt threads=1), (b) die delta_scan-View-Registrierung
+> ist seriell und jedes `CREATE VIEW` bindet beim Anlegen = zweiter voller Log-Read über
+> DuckDBs Delta-Extension (empirisch bestätigt). Fix in `C:\git\duckrun`, Branch
+> `perf-16-bulk-discovery`: Cross-Schema-Prefetch in `_relations_cache_for_schemas` (ein
+> Open-Pool + ein View-Bind-Pool über alle Schemas, Worker 8→32, Binds auf rohen
+> Child-Cursorn). Gemessen an diesem Projekt: `dbt show` 27.9s → 8.3s (Adapteranteil ~20s →
+> ~2s). Tests: 456 passed. PR-Text + Push-Anleitung: `tools/duckrun_pr_16.md`.
+
 Instructions for an AI coding agent (or a human) working on a fix proposal / PR for
 [djouallah/duckrun#16](https://github.com/djouallah/duckrun/issues/16). Everything below was
 established by static analysis of duckrun 0.4.21 (PyPI wheel) plus this project's setup; the
