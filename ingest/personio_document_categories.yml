@@ -1,0 +1,32 @@
+# Personio v1: company document categories (id + name per category).
+# API reference: https://developer.personio.de/v1.0/reference/get_company-document-categories
+#
+# v1 auth is NOT OAuth2: POST client_id/client_secret as JSON to /v1/auth, token comes back
+# under data.token (stable for 24h) — handled by the runner's generic `token_exchange` auth
+# type (see NB_dlt_runner). Same client_id/secret as the v2 configs.
+#
+# Deliberately tiny: this is the read side of the document workflow (which categories exist,
+# i.e. which category_id to use when uploading). The UPLOAD itself (POST /v1/company/documents)
+# is not an ingestion job and cannot be a config here — dlt only pulls data INTO bronze;
+# pushing files from the lakehouse to Personio needs its own small notebook.
+
+pipeline_name: personio_document_categories
+dataset_name: personio   # -> LH_Bronze/Tables/personio/
+
+source:
+  client:
+    base_url: https://api.personio.de
+    auth:
+      type: token_exchange
+      access_token_url: https://api.personio.de/v1/auth
+      token_json_path: data.token
+      client_id: REPLACE-WITH-PERSONIO-CLIENT-ID
+      client_secret: {keyvault_secret: personio-client-secret}
+  resources:
+    - name: document_categories
+      write_disposition: replace   # full tiny list each run, no incremental dimension
+      endpoint:
+        path: v1/company/document-categories
+        data_selector: data
+        paginator:
+          type: single_page

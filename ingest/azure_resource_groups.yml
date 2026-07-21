@@ -1,0 +1,37 @@
+# Demo/test config for the generic oauth2_client_credentials auth path in NB_dlt_runner —
+# not a "real" ingestion source, just something inside our own tenant that speaks the same
+# client_id/client_secret -> bearer pattern as the paid third-party APIs this repo eventually
+# targets. Lists the resource groups of one subscription via the Azure Resource Manager REST
+# API, authenticated as the `test-auth-spn` app registration (Reader role on test_res_group).
+#
+# Prerequisites (see README > Ingestion (dlt) > "Authenticating to the source API itself"):
+#   - fabric/VL.VariableLibrary variables.json: key_vault_url pointing at a real vault
+#   - a secret named `test-auth-spn-client-secret` in that vault holding the app's client secret
+#   - the identity running NB_dlt_runner has 'Get' on the vault's secrets
+
+pipeline_name: azure_resource_groups
+dataset_name: azure_demo   # -> LH_Bronze/Tables/azure_demo/
+
+source:
+  client:
+    base_url: https://management.azure.com
+    auth:
+      type: oauth2_client_credentials
+      access_token_url: https://login.microsoftonline.com/ce7faf5d-131f-4d13-a7d4-b7c4d321e29a/oauth2/v2.0/token
+      client_id: 5c99ee22-c273-4a8a-96ed-31c35a09200c
+      client_secret: {keyvault_secret: test-auth-spn-client-secret}
+      # Azure AD v2 token endpoint needs an explicit scope in the token request body.
+      access_token_request_data:
+        scope: https://management.azure.com/.default
+  resource_defaults:
+    write_disposition: replace   # full snapshot each run — there's no updated_at to page on
+  resources:
+    - name: resource_groups
+      endpoint:
+        path: subscriptions/cff2952f-f81b-4037-9500-ed2aed65929b/resourceGroups
+        params:
+          api-version: "2021-04-01"
+        data_selector: value        # ARM wraps the list as {"value": [...], "nextLink": ...}
+        paginator:
+          type: json_link
+          next_url_path: nextLink   # ARM's convention for the next-page URL

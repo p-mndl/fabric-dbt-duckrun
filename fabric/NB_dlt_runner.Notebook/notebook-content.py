@@ -138,13 +138,95 @@ import json
 
 import dlt
 import yaml
+from dlt.common.configuration import configspec
 from dlt.common.configuration.specs import AzureCredentials
 from dlt.destinations import filesystem
 from dlt.pipeline.exceptions import PipelineStepFailed
+from dlt.sources.helpers.rest_client.auth import OAuth2ClientCredentials
 from dlt.sources.rest_api import rest_api_source
+from dlt.sources.rest_api.config_setup import create_auth, register_auth
 
 with open(os.path.join(DLT_CONFIG_DIR, dlt_config), encoding="utf-8") as fh:
     cfg = yaml.safe_load(fh)
+
+
+# --- Custom auth type: non-OAuth2 token exchange -------------------------------------------
+# For APIs whose token endpoint predates OAuth2 (e.g. Personio v1 /auth): POST the client
+# credentials as a JSON body (no grant_type) and pluck the bearer token from a configurable
+# path in the response instead of the OAuth2-standard top-level `access_token`. Registered
+# under `type: token_exchange` for the declarative configs:
+#   auth:
+#     type: token_exchange
+#     access_token_url: https://api.example.com/v1/auth
+#     token_json_path: data.token          # where the token sits in the response JSON
+#     client_id: ...
+#     client_secret: {keyvault_secret: ...}
+@configspec
+class TokenExchangeAuth(OAuth2ClientCredentials):
+    token_json_path: str = "access_token"
+
+    def build_access_token_request(self):
+        return {
+            "headers": {"Content-Type": "application/json"},
+            "json": {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                **self.access_token_request_data,
+            },
+        }
+
+    def parse_access_token(self, response_json):
+        value = response_json
+        for key in self.token_json_path.split("."):
+            value = value[key]
+        return str(value)
+
+
+register_auth("token_exchange", TokenExchangeAuth)
+
+# --- Resolve Key Vault secret references inside auth blocks --------------------------------
+# Configs load as a plain dict (yaml.safe_load), so dlt's own dlt.secrets[...] resolution
+# never runs — a source needing a client_id/secret -> bearer exchange (dlt's built-in
+# "oauth2_client_credentials" auth type, or any other auth type) writes the secret as a
+# sentinel instead of a literal value:
+#   auth:
+#     type: oauth2_client_credentials
+#     client_id: my-client-id                          # not secret, fine as a literal
+#     client_secret: {keyvault_secret: myapi-client-secret}
+# Scoped deliberately to auth blocks only (client-level and per-resource endpoint overrides)
+# — not a general-purpose templating engine over the whole config.
+KEY_VAULT_URL = vl.key_vault_url
+
+
+# rest_api's config validation only knows dicts of the four BUILT-IN auth types; a dict
+# using a custom registered type (token_exchange) must be materialized into an auth
+# instance before validation sees it. Built-in types stay as dicts on the validated path.
+_BUILTIN_AUTH_TYPES = {"bearer", "api_key", "http_basic", "oauth2_client_credentials"}
+
+
+def resolve_auth_secrets(auth_cfg):
+    if not isinstance(auth_cfg, dict):
+        return auth_cfg
+    resolved = {
+        k: notebookutils.credentials.getSecret(KEY_VAULT_URL, v["keyvault_secret"])
+        if isinstance(v, dict) and "keyvault_secret" in v
+        else v
+        for k, v in auth_cfg.items()
+    }
+    if resolved.get("type", "bearer") not in _BUILTIN_AUTH_TYPES:
+        return create_auth(resolved)
+    return resolved
+
+
+client_cfg = cfg["source"].setdefault("client", {})
+if "auth" in client_cfg:
+    client_cfg["auth"] = resolve_auth_secrets(client_cfg["auth"])
+
+for resource in cfg["source"].get("resources", []):
+    if isinstance(resource, dict):
+        endpoint = resource.get("endpoint")
+        if isinstance(endpoint, dict) and "auth" in endpoint:
+            endpoint["auth"] = resolve_auth_secrets(endpoint["auth"])
 
 # --- Destination: LH_Bronze/Tables via OneLake --------------------------------------------
 # dlt reaches OneLake on two paths, and the "external session" credential feeds both:
@@ -226,6 +308,19 @@ payload = {
 exit_value = json.dumps(payload, ensure_ascii=False)
 print(f"dlt pipeline finished with status '{status}'")
 print(exit_value)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# notebookutils.notebook.exit() raises to halt the run, which Fabric renders as a failed
+# cell even on a successful pipeline — kept in its own cell so that stray traceback doesn't
+# get attributed to the ingestion logic above.
 notebookutils.notebook.exit(exit_value)
 
 # METADATA ********************

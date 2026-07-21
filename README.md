@@ -347,9 +347,45 @@ hands it to `AzureCredentials.from_credential(...)` (dlt ≥ 1.29 "external sess
 receives the live credential object (plus the explicit
 `account_host: onelake.blob.fabric.microsoft.com`, since adlfs only auto-detects
 `*.core.windows.net` accounts), delta-rs receives a frozen bearer token plus
-`use_fabric_endpoint`. Secrets for real APIs (tokens, client secrets) don't go into the
-YAML: dlt resolves them from env vars — fetch them from a Key Vault via
-`notebookutils.credentials.getSecret(...)` and export before `pipeline.run()`.
+`use_fabric_endpoint`.
+
+**Authenticating to the source API itself** (separate concern from the OneLake auth above).
+Configs load as a plain dict (`yaml.safe_load`), so dlt's own `dlt.secrets[...]` resolution
+never runs for them — a secret needed in a source's `auth` block (e.g. dlt's built-in
+`oauth2_client_credentials` auth type for a client_id/secret → bearer exchange) is written as
+a `{keyvault_secret: <name>}` sentinel instead of a literal value:
+
+```yaml
+source:
+  client:
+    base_url: https://api.example.com
+    auth:
+      type: oauth2_client_credentials
+      access_token_url: https://api.example.com/oauth/token
+      client_id: my-client-id                          # not secret, fine as a literal
+      client_secret: {keyvault_secret: myapi-client-secret}
+```
+
+`NB_dlt_runner` resolves any such sentinel found in a client-level or per-resource `auth`
+block via `notebookutils.credentials.getSecret(key_vault_url, name)` before building the
+source — scoped deliberately to `auth` blocks, not a general templating engine over the
+whole config. `key_vault_url` is a Variable Library variable (per-environment, like the
+lakehouse GUIDs). `getSecret` authenticates as whoever is running the notebook, not a fixed
+service identity — for a manual run that's the signed-in user, who needs **Get** permission
+on the vault's secrets (RBAC-mode vaults: the *Key Vault Secrets User* role); a
+pipeline-triggered run would need the same for whichever identity runs the pipeline.
+
+For token endpoints that predate OAuth2 (POST the credentials as JSON, token somewhere else
+in the response — e.g. Personio v1's `/v1/auth` with the token under `data.token`), the
+runner registers one custom auth type, `token_exchange`, taking the same fields plus a
+`token_json_path`. The shipped `personio_*.yml` configs demonstrate both flavors —
+`personio_attendance.yml` / `personio_report.yml` (v2, plain `oauth2_client_credentials`,
+cursor pagination via `_meta.links.next.href`) and `personio_document_categories.yml` (v1,
+`token_exchange`); all three verified end-to-end against a Personio API mock enforcing the
+auth contracts. Note the report config's caveat comment: report rows arrive as arrays of
+cell objects and land nested — and a document *upload* (`POST /v1/company/documents`) is
+not an ingestion job at all; dlt only pulls data into bronze, pushing files back out needs
+its own notebook.
 
 First run:
 
@@ -374,10 +410,12 @@ Caveats:
   shared data. Ingestion is an environment-level concern: run it in the workspace that owns
   the bronze, not from personal dev value sets.
 - The pipeline logic (pagination, incremental cursor + state restore across fresh sessions,
-  full refresh, Delta output, the staging dedupe) was verified against a GitHub-API mock
-  with a local Delta destination; the OneLake write path is assembled from dlt's documented
-  Fabric support but not yet exercised against a live tenant — if the first real run fails,
-  it will fail in the destination/auth cell of `NB_dlt_runner`.
+  full refresh, Delta output, the staging dedupe) was first verified against a GitHub-API
+  mock with a local Delta destination, then confirmed end-to-end against a live tenant
+  (`NB_dlt_runner` run against the real GitHub API, writing through OneLake into `LH_Bronze`).
+  The `oauth2_client_credentials` Key Vault path above is implemented but not yet exercised
+  against a live client_id/secret API — if a first real run of that path fails, check the
+  auth cell of `NB_dlt_runner` first.
 
 Not wired into `PL_Orchestration` yet — schedule it the same way as the dbt runner when
 needed: one notebook activity, `dlt_config` as the parameter, switching on the exit JSON's
@@ -499,6 +537,7 @@ all; nothing else in the repo is tenant-specific.
 | `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1` … `a5` | TEST workspace / bronze / silver / gold / notebook IDs | `valueSets/test.json` |
 | `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1` … `b5` | PROD workspace / bronze / silver / gold / notebook IDs | `valueSets/prod.json` |
 | `<SERVICE_CONNECTION_NAME>` | ADO service connection | `.pipelines/azure-pipelines.yml` |
+| `https://REPLACE-ME.vault.azure.net/` | Key Vault for `NB_dlt_runner`'s `keyvault_secret` auth resolution (see [Ingestion (dlt)](#ingestion-dlt)) | `variables.json` |
 
 `dbt/profiles.yml` and `dbt/models/sources.yml` contain no GUIDs at all — only
 `{{ env_var(...) }}` references resolved from the Variable Library at runtime.
